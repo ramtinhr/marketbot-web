@@ -9,6 +9,12 @@ export const BOOK_ROWS = 16;
 const TRADES_KEPT = 60;
 const SYMBOL_KEY = 'marketbot-market-symbol';
 const USER_KEY = 'marketbot-market-user';
+const INTERVAL_KEY = 'marketbot-market-interval';
+
+// The API's candle widths (GET /exchange/candles), in seconds.
+export const CANDLE_INTERVALS = { '1m': 60, '5m': 300, '15m': 900, '1h': 3600, '4h': 14400, '1d': 86400 } as const;
+export type CandleInterval = keyof typeof CANDLE_INTERVALS;
+const isInterval = (v: unknown): v is CandleInterval => typeof v === 'string' && v in CANDLE_INTERVALS;
 
 // The engine's refusal codes; the text is the page's to say.
 const REJECT_KEYS: Record<string, string> = {
@@ -27,6 +33,9 @@ export type OrdersTab = 'open' | 'history' | 'trades';
 export type FormRole = 'price' | 'amount' | 'total';
 export type ModeState = 'demo' | 'liveNoBot' | 'liveOff' | 'liveSimulated' | 'liveReal';
 
+export type ChartTab = 'price' | 'depth';
+export interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number }
+export interface DaySummary { open: number; high: number; low: number; close: number; volume: number; quoteVolume: number }
 export interface BookRow { price: number; quantity: number; user: number; venues: string[] }
 export interface FormValues { price: string; amount: string; total: string }
 export interface Toast { id: number; kind: string; title: string; body: string; leaving: boolean }
@@ -73,6 +82,15 @@ interface State {
     // venue orders from /exchange/status.
     mode: string | null;
     hedging: any;
+    // The chart. `candleSeq` changes when the series is replaced (a new pair
+    // or interval); between those, only the last candle moves.
+    chartTab: ChartTab;
+    interval: CandleInterval;
+    candles: Candle[];
+    candleSeq: number;
+    candlesLoading: boolean;
+    candlesLoaded: boolean;
+    summary: DaySummary | null;
 }
 
 export interface MarketDeps {
@@ -201,6 +219,13 @@ export class MarketController {
         toasts: [],
         mode: null,
         hedging: null,
+        chartTab: 'price',
+        interval: (() => { const v = readStore(INTERVAL_KEY); return isInterval(v) ? v : '15m'; })(),
+        candles: [],
+        candleSeq: 0,
+        candlesLoading: false,
+        candlesLoaded: false,
+        summary: null,
     };
 
     deps: MarketDeps;
@@ -248,6 +273,10 @@ export class MarketController {
         const s = this.s;
         if (s.group >= 1) return 0;
         if (s.group > 0) return Math.min(8, Math.round(-Math.log10(s.group)));
+        return this.pairDigits();
+    }
+    /** The pair's own price decimals, whatever the book is grouped to - for the chart. */
+    pairDigits(): number {
         const { bid, ask } = this.bestPrices();
         const ref = Math.abs(ask || bid || this.lastPrice() || 0);
         if (!ref || ref >= 1000) return 0;
@@ -411,6 +440,91 @@ export class MarketController {
             s.marketDirection = market > s.marketPrev ? 1 : -1;
         }
         s.marketPrev = market;
+        if (market !== null) this.tickCandle(market);
+    }
+
+    // ---- Chart ----
+
+    setChartTab(tab: ChartTab) {
+        this.s.chartTab = tab;
+        this.render();
+    }
+
+    setCandleInterval(interval: CandleInterval) {
+        if (interval === this.s.interval) return;
+        this.s.interval = interval;
+        writeStore(INTERVAL_KEY, interval);
+        void this.loadCandles();
+    }
+
+    loadCandles = async () => {
+        const s = this.s;
+        const symbol = s.symbol;
+        const interval = s.interval;
+        if (!symbol) return;
+        s.candles = [];
+        s.candlesLoaded = false;
+        s.candlesLoading = true;
+        s.candleSeq++;
+        this.render();
+        try {
+            const { ok, data } = await fetchJSON(`/exchange/candles?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=500`);
+            if (s.symbol !== symbol || s.interval !== interval) return;
+            if (ok) {
+                s.candles = (data.candles || []).map((c: any) => ({
+                    time: num(c.time), open: num(c.open), high: num(c.high), low: num(c.low), close: num(c.close), volume: num(c.volume),
+                }));
+                const d = data.summary;
+                s.summary = d ? {
+                    open: num(d.open), high: num(d.high), low: num(d.low), close: num(d.close),
+                    volume: num(d.volume), quoteVolume: num(d.quote_volume),
+                } : null;
+            }
+        } catch { /* an API without candles still gets live ones from the book */ }
+        if (s.symbol !== symbol || s.interval !== interval) return;
+        s.candlesLoading = false;
+        s.candlesLoaded = true;
+        s.candleSeq++;
+        const market = this.marketPrice();
+        if (market !== null) this.tickCandle(market);
+        this.render();
+    };
+
+    /** Moves the current candle, and the 24h figures, with the market price. */
+    private tickCandle(price: number) {
+        const s = this.s;
+        if (!s.candlesLoaded) return;
+        const width = CANDLE_INTERVALS[s.interval];
+        const start = Math.floor(Date.now() / 1000 / width) * width;
+        const last = s.candles.at(-1);
+        if (last && last.time === start) {
+            s.candles[s.candles.length - 1] = { ...last, high: Math.max(last.high, price), low: Math.min(last.low, price), close: price };
+        } else if (!last || start > last.time) {
+            const open = last && last.time === start - width ? last.close : price;
+            s.candles.push({ time: start, open, high: Math.max(open, price), low: Math.min(open, price), close: price, volume: 0 });
+        }
+        // Only ever moved, never started here: minutes of the book are not a day.
+        const d = s.summary;
+        if (d) s.summary = { ...d, high: Math.max(d.high, price), low: Math.min(d.low, price), close: price };
+    }
+
+    /** New trades' volume onto the candles they fall in, and onto the day. */
+    private addCandleVolume(trades: any[]) {
+        const s = this.s;
+        if (!s.candlesLoaded || !s.candles.length) return;
+        const width = CANDLE_INTERVALS[s.interval];
+        for (const tr of trades) {
+            const at = Math.floor(Date.parse(tr.executed_at) / 1000 / width) * width;
+            const i = s.candles.findIndex((c) => c.time === at);
+            if (i >= 0) s.candles[i] = { ...s.candles[i], volume: s.candles[i].volume + num(tr.quantity) };
+            if (s.summary) {
+                s.summary = {
+                    ...s.summary,
+                    volume: s.summary.volume + num(tr.quantity),
+                    quoteVolume: s.summary.quoteVolume + num(tr.quantity) * num(tr.price),
+                };
+            }
+        }
     }
 
     /**
@@ -649,6 +763,7 @@ export class MarketController {
         if (before !== null && after !== null && after !== before) s.lastDirection = after > before ? 1 : -1;
         s.flashIds = flash ? new Set(fresh.map((tr) => tr.id)) : null;
         this.trackMarket();
+        if (flash) this.addCandleVolume(fresh);
         this.render();
     }
 
@@ -888,10 +1003,12 @@ export class MarketController {
         writeStore(SYMBOL_KEY, symbol);
         this.deps.setSymbolParam(symbol);
         s.forms = { buy: emptyForm(), sell: emptyForm() };
+        s.summary = null;
         this.render();
         this.subscribe();
         void this.loadMarketTrades();
         void this.loadUserData();
+        void this.loadCandles();
     }
 
     /** A ?symbol= arriving after load (a link to this page from this page) switches the pair. */
@@ -942,5 +1059,6 @@ export class MarketController {
         void this.loadMarketTrades();
         void this.loadUserData();
         void this.loadStatus();
+        void this.loadCandles();
     }
 }

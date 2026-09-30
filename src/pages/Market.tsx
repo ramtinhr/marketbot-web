@@ -10,6 +10,7 @@ import {
     BOOK_ROWS, MarketController, baseOf, fmtAsset, fmtTime, fmtToman, num, pairLabel, parseAmount,
     quoteLabel, sideWord, type BookRow, type BookSide, type BookView, type FormRole, type OrdersTab, type Side,
 } from './Market/controller';
+import PriceChart from './Market/PriceChart';
 
 const dirClass = (d: number) => (d > 0 ? 'mk-up' : d < 0 ? 'mk-down' : '');
 const dirArrow = (d: number) => (d > 0 ? ' ↑' : d < 0 ? ' ↓' : '');
@@ -18,7 +19,7 @@ const MODE_BADGE = { demo: 'simulated', liveNoBot: 'failed', liveOff: 'stale', l
 const ORDER_BADGE: Record<string, string> = { open: 'simulated', partial: 'pending', filled: 'completed', cancelled: 'stale' };
 
 export default function Market() {
-    const { t, format, locale } = useI18n();
+    const { t, locale } = useI18n();
     const status = usePageStatus();
     const [searchParams, setSearchParams] = useSearchParams();
     const [, rerender] = useReducer((n: number) => n + 1, 0);
@@ -56,112 +57,48 @@ export default function Market() {
     useInterval(() => { if (m.s.inited) void m.loadRealBalances(); }, 10000);
 
     const s = m.s;
-    const base = baseOf(s.symbol);
     const live = m.isLive();
 
-    const last = m.lastPrice();
-    const { bid, ask } = m.bestPrices();
-    const market = m.marketPrice();
-    const spread = bid !== null && ask !== null ? ask - bid : null;
-    const mid = spread !== null && bid !== null && ask !== null ? (ask + bid) / 2 : null;
-    const spreadPct = format.percent(mid ? ((spread as number) / mid) * 100 : 0, 3);
-
-    const mode = m.modeState();
-
-    const liquidity = !s.depth
-        ? { cls: 'pending', text: t('market.liquidity.none') }
-        : s.depth.venue_liquidity
-            ? { cls: 'ok', text: t('market.liquidity.venues') }
-            : { cls: 'stale', text: t('market.liquidity.usersOnly') };
-
     return (
-        <>
+        <div className="mk-page">
             <div className={`mt-notice${s.notice?.red ? ' red' : ''}`} hidden={!s.notice}>{s.notice?.text}</div>
 
-            {/* Pair and ticker */}
-            <div className="mk-bar">
-                <div className="mk-pair">
-                    <div className="mk-pair-icon" aria-hidden="true">{base.slice(0, 4)}</div>
-                    <select aria-label={t('market.pair')} value={s.symbol || ''} onChange={(e) => m.selectSymbol(e.target.value)}>
-                        {s.symbols.map((sym) => <option key={sym} value={sym}>{pairLabel(sym)}</option>)}
-                    </select>
-                </div>
-                <div className="mk-stat">
-                    <span title={t('market.price.hint')}>{t('market.price')}</span>
-                    <strong className={`mk-last ${dirClass(s.marketDirection)}`}>{market === null ? '—' : m.fmtPrice(market)}</strong>
-                </div>
-                <div className="mk-stat">
-                    <span>{t('market.last')}</span>
-                    <strong className={dirClass(s.lastDirection)}>{last === null ? '—' : m.fmtPrice(last)}</strong>
-                </div>
-                <div className="mk-stat">
-                    <span>{t('market.bestBid')}</span>
-                    <strong className="mk-up">{bid === null ? '—' : m.fmtPrice(bid)}</strong>
-                </div>
-                <div className="mk-stat">
-                    <span>{t('market.bestAsk')}</span>
-                    <strong className="mk-down">{ask === null ? '—' : m.fmtPrice(ask)}</strong>
-                </div>
-                <div className="mk-stat">
-                    <span>{t('market.spread')}</span>
-                    <strong>{spread === null ? '—' : `${m.fmtPrice(spread)} (${spreadPct})`}</strong>
-                </div>
-                <div className="mk-stat">
-                    <span>{t('market.liquidity')}</span>
-                    <strong><span className={`status-badge ${liquidity.cls}`}>{liquidity.text}</span></strong>
-                </div>
-                <div className="mk-stat" hidden={!mode}>
-                    <span>{t('market.mode')}</span>
-                    <strong>
-                        {mode && (
-                            <span className={`status-badge ${MODE_BADGE[mode]}`} title={t(`market.mode.hint.${mode}`, {
-                                cap: s.hedging && s.hedging.max_notional_toman ? fmtToman(s.hedging.max_notional_toman) : '—',
-                            })}>{t(`market.mode.${mode}`)}</span>
-                        )}
-                    </strong>
-                </div>
-                <div className="mk-spacer" />
-                <div className="mk-user">
-                    <div className="filter-field">
-                        <label htmlFor="userSelect">{t('market.tradingAs')}</label>
-                        <select id="userSelect" value={s.userId || ''} onChange={(e) => m.selectUser(e.target.value)}>
-                            {s.users.length
-                                ? s.users.map((u) => <option key={u.id} value={u.id}>{u.display_name} ({u.username})</option>)
-                                : s.inited && <option value="">{t('market.users.none')}</option>}
-                        </select>
-                    </div>
-                    {/* Test funds exist only in demo mode: live orders spend real money. */}
-                    <button className="btn" type="button" title={t('market.faucet.hint')} hidden={live}
-                            disabled={!s.userId || live || s.faucetBusy} onClick={() => void m.topUp()}>
-                        {t('market.faucet')}
-                    </button>
-                </div>
-            </div>
-
-            <div className="mk-grid">
+            <div className="mk-terminal">
+                <Ticker m={m} />
                 <OrderBook m={m} />
+                <PriceChart m={m} />
 
-                {/* Order entry and balances */}
                 <section className="panel mk-trade">
-                    <div className="panel-header">
-                        <h2>{t('market.form.title')}</h2>
+                    <div className="mk-panel-head">
+                        <div className="mk-tabs" role="tablist">
+                            <button type="button" role="tab" aria-selected="true" className="active">{t('market.form.title')}</button>
+                        </div>
                         <span className="panel-hint">{t('market.form.hint')}</span>
                     </div>
                     <div className="mk-forms">
                         <TradeForm m={m} side="buy" />
                         <TradeForm m={m} side="sell" />
                     </div>
+                </section>
 
-                    <div className="mk-subhead" title={live ? t('market.balances.liveHint') : ''}>
-                        {t(live ? 'market.balances.titleLive' : 'market.balances.title')}
+                <MarketTrades m={m} />
+
+                <section className="panel mk-assets">
+                    <div className="mk-panel-head">
+                        <h2 title={live ? t('market.balances.liveHint') : ''}>
+                            {t(live ? 'market.balances.titleLive' : 'market.balances.title')}
+                        </h2>
+                        {/* Test funds exist only in demo mode: live orders spend real money. */}
+                        <button className="btn mt-small" type="button" title={t('market.faucet.hint')} hidden={live}
+                                disabled={!s.userId || live || s.faucetBusy} onClick={() => void m.topUp()}>
+                            {t('market.faucet')}
+                        </button>
                     </div>
                     <Balances m={m} />
                 </section>
 
-                <MarketTrades m={m} />
+                <Orders m={m} />
             </div>
-
-            <Orders m={m} />
 
             <footer className="page-footer">{t('market.footer')}</footer>
 
@@ -177,7 +114,87 @@ export default function Market() {
                     </div>
                 ))}
             </div>
-        </>
+        </div>
+    );
+}
+
+// ---- Pair and ticker ----
+
+function Ticker({ m }: { m: MarketController }) {
+    const { t, format } = useI18n();
+    const s = m.s;
+    const base = baseOf(s.symbol);
+
+    const last = m.lastPrice();
+    const { bid, ask } = m.bestPrices();
+    const market = m.marketPrice();
+    const spread = bid !== null && ask !== null ? ask - bid : null;
+    const mid = spread !== null && bid !== null && ask !== null ? (ask + bid) / 2 : null;
+
+    const day = s.summary;
+    const change = day ? day.close - day.open : null;
+    const changePct = day && day.open ? (change as number) / day.open * 100 : null;
+    const sign = (n: number) => (n > 0 ? '+' : '');
+
+    const mode = m.modeState();
+    const liquidity = !s.depth
+        ? { cls: 'pending', text: t('market.liquidity.none') }
+        : s.depth.venue_liquidity
+            ? { cls: 'ok', text: t('market.liquidity.venues') }
+            : { cls: 'stale', text: t('market.liquidity.usersOnly') };
+
+    const stat = (label: string, value: ReactNode, cls = '', hint?: string) => (
+        <div className="mk-stat">
+            <span title={hint}>{label}</span>
+            <strong className={cls}>{value}</strong>
+        </div>
+    );
+
+    return (
+        <header className="panel mk-ticker">
+            <div className="mk-pair">
+                <div className="mk-pair-icon" aria-hidden="true">{base.slice(0, 4)}</div>
+                <select aria-label={t('market.pair')} value={s.symbol || ''} onChange={(e) => m.selectSymbol(e.target.value)}>
+                    {s.symbols.map((sym) => <option key={sym} value={sym}>{pairLabel(sym)}</option>)}
+                </select>
+            </div>
+            <div className="mk-headline">
+                <strong className={`mk-last ${dirClass(s.marketDirection)}`} title={t('market.price.hint')}>
+                    {market === null ? '—' : m.fmtPrice(market)}
+                </strong>
+                <span className={dirClass(s.lastDirection)}>
+                    {last === null ? t('market.book.noTrade') : t('market.book.lastTrade', { price: m.fmtPrice(last) })}
+                </span>
+            </div>
+            <div className="mk-stats">
+                {stat(t('market.ticker.change'), change === null
+                    ? '—'
+                    : `${sign(change)}${m.fmtPrice(change)} ${sign(change)}${format.percent(changePct ?? 0, 2)}`, dirClass(change ?? 0),
+                t('market.ticker.hint'))}
+                {stat(t('market.ticker.high'), day ? m.fmtPrice(day.high) : '—')}
+                {stat(t('market.ticker.low'), day ? m.fmtPrice(day.low) : '—')}
+                {stat(t('market.ticker.volume', { asset: base }), day ? m.fmtQty(day.volume) : '—')}
+                {stat(t('market.ticker.volume', { asset: quoteLabel() }), day ? fmtToman(day.quoteVolume) : '—')}
+                {stat(t('market.spread'), spread === null ? '—' : `${m.fmtPrice(spread)} (${format.percent(mid ? (spread / mid) * 100 : 0, 3)})`)}
+            </div>
+            <div className="mk-spacer" />
+            <div className="mk-badges">
+                <span className={`status-badge ${liquidity.cls}`} title={t('market.liquidity')}>{liquidity.text}</span>
+                {mode && (
+                    <span className={`status-badge ${MODE_BADGE[mode]}`} title={t(`market.mode.hint.${mode}`, {
+                        cap: s.hedging && s.hedging.max_notional_toman ? fmtToman(s.hedging.max_notional_toman) : '—',
+                    })}>{t(`market.mode.${mode}`)}</span>
+                )}
+            </div>
+            <div className="mk-user">
+                <label htmlFor="userSelect">{t('market.tradingAs')}</label>
+                <select id="userSelect" className="toolbar-select" value={s.userId || ''} onChange={(e) => m.selectUser(e.target.value)}>
+                    {s.users.length
+                        ? s.users.map((u) => <option key={u.id} value={u.id}>{u.display_name} ({u.username})</option>)
+                        : s.inited && <option value="">{t('market.users.none')}</option>}
+                </select>
+            </div>
+        </header>
     );
 }
 
@@ -203,6 +220,8 @@ function OrderBook({ m }: { m: MarketController }) {
 
     let asksBody: ReactNode;
     let bidsBody: ReactNode;
+    // How the shown book splits between buyers and sellers, by amount.
+    let ratio: { bid: number; ask: number } | null = null;
     if (!d) {
         asksBody = view === 'bids' ? null : <div className="mk-book-empty">{t('market.book.waiting')}</div>;
         bidsBody = null;
@@ -213,6 +232,12 @@ function OrderBook({ m }: { m: MarketController }) {
         const askCum = cum(asks);
         const bidCum = cum(bids);
         const maxCum = Math.max(askCum.at(-1) || 0, bidCum.at(-1) || 0);
+        const bidTotal = bidCum.at(-1) || 0;
+        const askTotal = askCum.at(-1) || 0;
+        if (bidTotal + askTotal > 0) {
+            const bidPct = (bidTotal / (bidTotal + askTotal)) * 100;
+            ratio = { bid: bidPct, ask: 100 - bidPct };
+        }
         const row = (side: BookSide, r: BookRow, cumulative: number) => {
             const pct = maxCum > 0 ? Math.min(100, (cumulative / maxCum) * 100) : 0;
             const tip = r.venues.length
@@ -237,7 +262,7 @@ function OrderBook({ m }: { m: MarketController }) {
 
     return (
         <section className="panel mk-book">
-            <div className="panel-header">
+            <div className="mk-panel-head">
                 <h2>{t('market.book.title')}</h2>
                 <div className="toolbar-group">
                     <div className="segmented" id="bookView">
@@ -284,6 +309,16 @@ function OrderBook({ m }: { m: MarketController }) {
             </div>
             <div className="mk-side mk-bids" hidden={view === 'asks'}
                  style={{ '--rows': view === 'asks' ? 0 : rows } as CSSProperties}>{bidsBody}</div>
+            {ratio && (
+                <div className="mk-ratio" title={t('market.book.ratio.hint')}>
+                    <span className="mk-up">{t('market.book.ratio.buy')} {format.percent(ratio.bid, 1)}</span>
+                    <div className="mk-ratio-bar" aria-hidden="true">
+                        <i className="bid" style={{ width: `${ratio.bid.toFixed(1)}%` }} />
+                        <i className="ask" style={{ width: `${ratio.ask.toFixed(1)}%` }} />
+                    </div>
+                    <span className="mk-down">{format.percent(ratio.ask, 1)} {t('market.book.ratio.sell')}</span>
+                </div>
+            )}
             <div className="mk-legend">
                 <span><i className="mk-user-dot" aria-hidden="true" /><span>{t('market.book.legend.users')}</span></span>
                 <span><i className="mk-mine-mark" aria-hidden="true" /><span>{t('market.book.legend.mine')}</span></span>
@@ -295,7 +330,7 @@ function OrderBook({ m }: { m: MarketController }) {
 // ---- Order forms ----
 
 function TradeForm({ m, side }: { m: MarketController; side: Side }) {
-    const { t } = useI18n();
+    const { t, format } = useI18n();
     const s = m.s;
     const base = baseOf(s.symbol);
     const f = s.forms[side];
@@ -306,12 +341,16 @@ function TradeForm({ m, side }: { m: MarketController; side: Side }) {
                value={f[role]} onChange={(e) => m.setField(side, role, e.target.value)} />
     );
 
+    // The slider shows how much of the available balance the order would use.
+    const available = m.balanceOf(asset).available;
+    const { bid, ask } = m.bestPrices();
+    const price = num(parseAmount(f.price)) || (side === 'buy' ? ask : bid) || 0;
+    const amount = num(parseAmount(f.amount));
+    const used = side === 'buy' ? amount * price : amount;
+    const pct = available > 0 ? Math.min(100, (used / available) * 100) : 0;
+
     return (
-        <form className="mk-form" data-side={side} noValidate onSubmit={(e) => { e.preventDefault(); void m.placeOrder(side); }}>
-            <div className="mk-avail">
-                <span>{t('market.form.available')}</span>
-                <b>{s.userId ? `${fmtAsset(m.balanceOf(asset).available, asset, { floor: true })} ${side === 'buy' ? quoteLabel() : base}` : '—'}</b>
-            </div>
+        <form className={`mk-form ${side}`} data-side={side} noValidate onSubmit={(e) => { e.preventDefault(); void m.placeOrder(side); }}>
             <div className="mk-field">
                 <label>{t('market.form.price')}</label>
                 {input('price')}
@@ -325,15 +364,26 @@ function TradeForm({ m, side }: { m: MarketController; side: Side }) {
                 {input('amount')}
                 <span className="unit">{base}</span>
             </div>
-            <div className="mk-pcts">
-                {[25, 50, 75, 100].map((pct) => (
-                    <button key={pct} type="button" onClick={() => m.fillPercent(side, pct)}>{pct}%</button>
-                ))}
+            <div className="mk-slider" style={{ '--pct': `${pct.toFixed(1)}%` } as CSSProperties}>
+                <input type="range" min={0} max={100} step={1} value={Math.round(pct)} disabled={!s.userId}
+                       aria-label={t('market.form.percent')} aria-valuetext={format.percent(pct, 0)}
+                       onChange={(e) => m.fillPercent(side, Number(e.target.value))} />
+                <div className="mk-slider-marks">
+                    {[0, 25, 50, 75, 100].map((p) => (
+                        <button key={p} type="button" className={pct >= p ? 'on' : ''} disabled={!s.userId}
+                                title={format.percent(p, 0)} aria-label={format.percent(p, 0)}
+                                onClick={() => m.fillPercent(side, p)} />
+                    ))}
+                </div>
             </div>
             <div className="mk-field">
                 <label>{t('market.form.total')}</label>
                 {input('total')}
                 <span className="unit">{quoteLabel()}</span>
+            </div>
+            <div className="mk-avail">
+                <span>{t('market.form.available')}</span>
+                <b>{s.userId ? `${fmtAsset(available, asset, { floor: true })} ${side === 'buy' ? quoteLabel() : base}` : '—'}</b>
             </div>
             <div className="mk-preview" aria-live="polite"><Preview m={m} side={side} /></div>
             <button type="submit" className={`mk-submit ${side}`} disabled={busy || !s.userId}>
@@ -455,7 +505,7 @@ function MarketTrades({ m }: { m: MarketController }) {
     const s = m.s;
     return (
         <section className="panel mk-trades">
-            <div className="panel-header">
+            <div className="mk-panel-head">
                 <h2>{t('market.trades.title')}</h2>
             </div>
             <div className="mk-trade-head">
@@ -494,10 +544,11 @@ function Orders({ m }: { m: MarketController }) {
 
     return (
         <section className="panel mk-orders">
-            <div className="panel-header">
-                <div className="segmented">
+            <div className="mk-panel-head">
+                <div className="mk-tabs" role="tablist">
                     {tabs.map((tab) => (
-                        <button key={tab} type="button" className={s.tab === tab ? 'active' : ''} onClick={() => m.setTab(tab)}>
+                        <button key={tab} type="button" role="tab" aria-selected={s.tab === tab}
+                                className={s.tab === tab ? 'active' : ''} onClick={() => m.setTab(tab)}>
                             {tabLabel(tab)}
                         </button>
                     ))}

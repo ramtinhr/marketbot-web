@@ -1468,29 +1468,149 @@ code {
 }
 
 /* ---------- Market page ---------- */
-/* Full width: a trading screen reads across, and a 1320px cap leaves the book,
-   the forms and the trades each too narrow for a price and its depth. */
-.page-market .container { max-width: none; padding: 16px 20px 40px; }
+/* Laid out and coloured like Binance's spot screen: flat panels a few pixels
+   apart on the darkest background, book on the start side, chart and order
+   entry in the middle, trades and assets on the end side, orders beneath. */
+
+/* Binance's buy and sell colours, on <body> so the chart canvas can read them
+   too (PriceChart.tsx). Its yellow accent is kept to the page itself, so the
+   sidebar stays in the app's own colours. */
+body.page-market {
+    --green: #0ecb81;
+    --green-soft: rgba(14, 203, 129, 0.12);
+    --red: #f6465d;
+    --red-soft: rgba(246, 70, 93, 0.12);
+}
+:root[data-theme="light"] body.page-market {
+    --green: #03a66d;
+    --green-soft: rgba(3, 166, 109, 0.1);
+    --red: #cf304a;
+    --red-soft: rgba(207, 48, 74, 0.1);
+}
+.mk-page {
+    --accent: #f0b90b;
+    --accent-hover: #f8d12f;
+    --accent-soft: rgba(240, 185, 11, 0.14);
+    --accent-text: #f0b90b;
+}
+:root[data-theme="light"] .mk-page { --accent-text: #b88a00; --accent-soft: rgba(240, 185, 11, 0.18); }
+
+/* Full width: a trading screen reads across. */
+.page-market .container { max-width: none; padding: 8px 8px 32px; }
 .page-market .content-body { padding-top: 0; }
 
-.mk-bar {
+.mk-terminal {
+    display: grid;
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(270px, 320px);
+    grid-template-rows: auto 480px auto auto;
+    grid-template-areas:
+        "ticker ticker ticker"
+        "book   chart  trades"
+        "book   form   assets"
+        "orders orders orders";
+    gap: 4px;
+    margin-bottom: 12px;
+}
+.mk-terminal > .panel {
+    margin: 0;
+    min-width: 0;
+    padding: 12px 14px;
+    border: none;
+    border-radius: 8px;
+}
+.mk-ticker { grid-area: ticker; }
+.mk-book { grid-area: book; }
+.mk-chart { grid-area: chart; }
+.mk-trade { grid-area: form; }
+.mk-trades { grid-area: trades; }
+.mk-assets { grid-area: assets; }
+.mk-orders { grid-area: orders; }
+@media (max-width: 1280px) {
+    .mk-terminal {
+        grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+        grid-template-rows: auto 460px auto auto auto;
+        grid-template-areas:
+            "ticker ticker"
+            "book   chart"
+            "book   form"
+            "trades assets"
+            "orders orders";
+    }
+}
+@media (max-width: 880px) {
+    .mk-terminal {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto 380px;
+        grid-template-areas: "ticker" "chart" "book" "form" "trades" "assets" "orders";
+    }
+    .page-market .container { padding: 6px 6px 28px; }
+    .mk-spacer { display: none; }
+}
+
+/* A panel's title row: smaller and tighter than the rest of the app's. */
+.mk-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+    min-height: 28px;
+}
+.mk-panel-head h2 { font-size: 14px; font-weight: 600; color: var(--text); }
+
+/* Tabs as Binance draws them: plain words, the active one bold with a short
+   accent bar beneath. */
+.mk-tabs { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.mk-tabs button {
+    position: relative;
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 4px 0 8px;
+    cursor: pointer;
+    transition: color 0.12s ease;
+}
+.mk-tabs button:hover { color: var(--text); }
+.mk-tabs button.active { color: var(--text); font-weight: 650; }
+.mk-tabs button.active::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 50%;
+    bottom: 0;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+    transform: translateX(-50%);
+}
+[dir="rtl"] .mk-tabs button.active::after { transform: translateX(50%); }
+
+/* Pair and ticker. */
+.mk-ticker {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px 26px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 14px;
+    gap: 10px 28px;
 }
+.mk-headline { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mk-headline strong { font-family: var(--mono); font-size: 20px; font-weight: 650; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.mk-headline span { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); }
+.mk-stats { display: flex; flex-wrap: wrap; gap: 8px 26px; }
+.mk-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-user { display: flex; align-items: center; gap: 8px; }
+.mk-user label { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
+.mk-user select { min-width: 190px; }
 .mk-pair { display: flex; align-items: center; gap: 10px; }
 .mk-pair-icon {
     width: 34px;
     height: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent), #8b5cf6);
-    color: #fff;
+    background: var(--accent);
+    color: #181a20;
     display: grid;
     place-items: center;
     font-size: 10.5px;
@@ -1504,7 +1624,7 @@ code {
     border-radius: 8px;
     color: var(--text);
     font: inherit;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
     padding: 4px 6px;
     cursor: pointer;
@@ -1514,40 +1634,97 @@ code {
 .mk-pair select option { background: var(--surface); }
 .mk-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mk-stat > span {
-    font-size: 10.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 11px;
     color: var(--text-faint);
     white-space: nowrap;
 }
-.mk-stat strong { font-family: var(--mono); font-size: 13.5px; font-weight: 650; white-space: nowrap; }
-.mk-stat strong.mk-last { font-size: 19px; }
+.mk-stat strong { font-family: var(--mono); font-size: 12.5px; font-weight: 600; white-space: nowrap; color: var(--text); }
+.mk-stat strong.mk-up { color: var(--green); }
+.mk-stat strong.mk-down { color: var(--red); }
 .mk-up { color: var(--green); }
 .mk-down { color: var(--red); }
 .mk-dim { color: var(--text-dim); }
 .mk-warn { color: var(--red); }
 .mk-spacer { flex: 1 1 0; }
-.mk-user { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
-.mk-user .filter-field select { min-width: 200px; }
 
-.mk-grid {
+/* The chart: tabs and intervals over a canvas that fills the panel. */
+.mk-chart { display: flex; flex-direction: column; }
+.mk-chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-bottom: 8px;
+}
+.mk-intervals { display: flex; gap: 2px; flex-wrap: wrap; }
+.mk-intervals button {
+    background: none;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 8px;
+    cursor: pointer;
+}
+.mk-intervals button:hover { color: var(--text); background: var(--surface-2); }
+.mk-intervals button.active { color: var(--accent-text); background: var(--surface-2); font-weight: 650; }
+.mk-chart-body { position: relative; flex: 1 1 auto; min-height: 0; }
+.mk-candles, .mk-candles-host { position: absolute; inset: 0; }
+/* Physical left, not inline-start: the canvas is left to right in every
+   language, so its price axis is always on the right. */
+.mk-ohlc {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    max-width: calc(100% - 130px);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-faint);
+    pointer-events: none;
+}
+.mk-ohlc b { font-weight: 500; color: var(--text); }
+.mk-ohlc b.mk-up { color: var(--green); }
+.mk-ohlc b.mk-down { color: var(--red); }
+.mk-chart-note {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
     display: grid;
-    grid-template-columns: minmax(300px, 1fr) minmax(380px, 1.3fr) minmax(260px, 0.9fr);
-    gap: 14px;
-    align-items: start;
-    margin-bottom: 14px;
+    place-items: center;
+    padding: 20px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    pointer-events: none;
 }
-.mk-grid > section.panel { margin-bottom: 0; min-width: 0; padding: 14px; }
-.page-market section.panel .panel-header { margin-bottom: 10px; }
-@media (max-width: 1320px) {
-    .mk-grid { grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.25fr); }
-    .mk-trades { grid-column: 1 / -1; }
+.mk-depth { position: absolute; inset: 0; height: auto; min-height: 0; }
+
+/* Buyers against sellers, under the book. */
+.mk-ratio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 600;
 }
-@media (max-width: 880px) {
-    .mk-grid { grid-template-columns: minmax(0, 1fr); }
-    .page-market .container { padding: 12px 16px 32px; }
-    .mk-spacer { display: none; }
-}
+.mk-ratio-bar { flex: 1; display: flex; gap: 2px; height: 4px; }
+.mk-ratio-bar i { display: block; border-radius: 2px; transition: width 0.25s ease; }
+.mk-ratio-bar .bid { background: var(--green); }
+.mk-ratio-bar .ask { background: var(--red); }
+
+/* Assets and trades share the end column. */
+.mk-trades { display: flex; flex-direction: column; min-height: 0; }
+.mk-trades #marketTrades { flex: 1 1 auto; min-height: 0; max-height: none; }
+@media (max-width: 1280px) { .mk-trades #marketTrades { max-height: 360px; } }
 
 /* The book: three columns of figures, a depth bar behind each row growing
    from the figures' end, asks above the spread and bids below it. */
@@ -1701,19 +1878,57 @@ code {
     padding: 2px 8px;
     cursor: pointer;
 }
-.mk-pcts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.mk-pcts button {
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    color: var(--text-dim);
-    font: inherit;
-    font-size: 11px;
-    padding: 4px 0;
-    cursor: pointer;
-    transition: border-color 0.12s ease, color 0.12s ease;
+/* Share of the balance: a track filled to --pct, with diamond stops at the
+   quarters, as on Binance. The range input sits on top, transparent, so
+   dragging and the keyboard work natively. */
+.mk-slider { position: relative; height: 22px; margin: 2px 7px; }
+.mk-slider::before,
+.mk-slider::after {
+    content: '';
+    position: absolute;
+    inset-inline-start: 0;
+    top: 50%;
+    height: 3px;
+    border-radius: 2px;
+    transform: translateY(-50%);
 }
-.mk-pcts button:hover { border-color: var(--accent); color: var(--text); }
+.mk-slider::before { inset-inline-end: 0; background: var(--border); }
+.mk-slider::after { width: var(--pct, 0%); background: var(--text-dim); }
+.mk-form.buy .mk-slider::after { background: var(--green); }
+.mk-form.sell .mk-slider::after { background: var(--red); }
+.mk-slider input {
+    position: absolute;
+    inset: 0 -7px;
+    width: calc(100% + 14px);
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+.mk-slider input:disabled { cursor: not-allowed; }
+.mk-slider-marks {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: none;
+    z-index: 1;
+}
+.mk-slider-marks button {
+    width: 9px;
+    height: 9px;
+    margin: 0 -4.5px;
+    padding: 0;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    transform: rotate(45deg);
+    border-radius: 1px;
+    pointer-events: none;
+}
+.mk-form.buy .mk-slider-marks button.on { border-color: var(--green); background: var(--green); }
+.mk-form.sell .mk-slider-marks button.on { border-color: var(--red); background: var(--red); }
+.mk-slider input:focus-visible ~ .mk-slider-marks button { box-shadow: 0 0 0 2px var(--accent-soft); }
 .mk-preview {
     font-size: 11.5px;
     color: var(--text-dim);
@@ -1725,8 +1940,7 @@ code {
     min-height: 58px;
 }
 .mk-preview b { font-family: var(--mono); color: var(--text); font-weight: 600; }
-/* Filled buttons, one fixed pair in both themes: the dark theme's --green is
-   bright enough that white on it would be unreadable. */
+/* Filled buttons in Binance's own buy and sell colours. */
 .mk-submit {
     width: 100%;
     padding: 11px;
@@ -1739,20 +1953,11 @@ code {
     cursor: pointer;
     transition: filter 0.15s ease, opacity 0.15s ease;
 }
-.mk-submit.buy { background: #1b9150; }
-.mk-submit.sell { background: #d23c3c; }
+.mk-submit.buy { background: var(--green); }
+.mk-submit.sell { background: var(--red); }
 .mk-submit:hover { filter: brightness(1.08); }
 .mk-submit:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
-.mk-subhead {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-faint);
-    margin: 18px 0 8px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border-soft);
-}
 .mk-balances { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .mk-balances th {
     text-align: start;
@@ -1901,7 +2106,8 @@ code {
    tooltips out left to right. Flipping the box around them would move the
    tooltip away from the point it belongs to. */
 [dir="rtl"] .chart-box,
-[dir="rtl"] .chart-canvas {
+[dir="rtl"] .chart-canvas,
+[dir="rtl"] .mk-candles-host {
     direction: ltr;
 }
 
