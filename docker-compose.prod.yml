@@ -3,9 +3,9 @@
 # file on the server, which the deploy workflow writes from GitHub Secrets.
 #
 # Deployed to the same host as the bot and marketbot-api. This container has
-# no TLS and no login of its own: it listens on loopback only, and
-# marketbot-api's nginx serves it on WEB_DOMAIN over HTTPS, behind the same
-# basic auth as the API (see that repo's deploy/nginx). Deploy the API first.
+# no TLS of its own: it listens on loopback only, and marketbot-api's nginx
+# serves it on WEB_DOMAIN over HTTPS (see that repo's deploy/nginx). Sign-in is
+# the app's /login page against the API's own admin accounts. Deploy the API first.
 
 services:
   web:
@@ -20,7 +20,7 @@ services:
       # directly, so the browser only ever talks to one origin.
       API_UPSTREAM: http://127.0.0.1:${API_PORT:-8080}
       # Loopback only. On the host network 0.0.0.0 would publish the dashboard,
-      # and the API behind it, to the internet without basic auth.
+      # and the API behind it, to the internet over plain HTTP.
       WEB_HOST: 127.0.0.1
       # Must match WEB_PORT in marketbot-api's .env, where its nginx looks.
       WEB_PORT: ${WEB_PORT:-8081}

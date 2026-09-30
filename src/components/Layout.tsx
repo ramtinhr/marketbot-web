@@ -4,6 +4,7 @@ import {
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
 import { useI18n } from '../i18n';
+import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/theme';
 import { NAV, PAGES } from './nav';
 
@@ -46,6 +47,7 @@ function normalizePath(pathname: string): string {
 export default function Layout() {
     const { t, isRTL, locale, available, setLocale } = useI18n();
     const { theme, setTheme } = useTheme();
+    const { admin, logout } = useAuth();
     const location = useLocation();
     const path = normalizePath(location.pathname);
     const page = PAGES[path] || PAGES['/dashboard'];
@@ -141,6 +143,19 @@ export default function Layout() {
                         ))}
                     </nav>
                     <div className="sidebar-footer">
+                        {admin && (
+                            <div className="sidebar-user">
+                                <span className="sidebar-user-avatar" aria-hidden="true">{admin.username.slice(0, 1).toUpperCase()}</span>
+                                <div className="sidebar-user-text">
+                                    <span className="sidebar-user-name">{admin.username}</span>
+                                    <span className="sidebar-user-role">{t('shell.role')}</span>
+                                </div>
+                                <button type="button" className="sidebar-logout" onClick={() => void logout()}
+                                        title={t('shell.signOut')} aria-label={t('shell.signOut')}>
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5" /><path d="M21 12H9" /></svg>
+                                </button>
+                            </div>
+                        )}
                         {languages.length >= 2 && (
                             <div className="lang-toggle" role="group" aria-label={t('shell.languageLabel')}>
                                 {languages.map(lang => (

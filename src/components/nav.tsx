@@ -49,6 +49,7 @@ export const NAV: NavGroup[] = [
         label: 'nav.group.configuration',
         items: [
             { href: '/providers', label: 'nav.providers', icon: icon(<><rect x="3" y="4" width="18" height="7" rx="2" /><rect x="3" y="13" width="18" height="7" rx="2" /><circle cx="7.5" cy="7.5" r="1" fill="currentColor" stroke="none" /><circle cx="7.5" cy="16.5" r="1" fill="currentColor" stroke="none" /></>) },
+            { href: '/admins', label: 'nav.admins', icon: icon(<><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></>) },
         ],
     },
 ];
@@ -81,4 +82,5 @@ export const PAGES: Record<string, PageMeta> = {
     '/request-logs': { title: 'page.requestLogs.title', subtitle: 'page.requestLogs.sub', docTitle: 'logs.docTitle', link: { href: '/dashboard', label: 'nav.overview' } },
     '/providers': { title: 'page.providers.title', subtitle: 'page.providers.sub', docTitle: 'providers.docTitle', link: { href: '/dashboard', label: 'nav.overview' } },
     '/provider-edit': { title: 'page.providerEdit.title', subtitle: 'page.providerEdit.sub', docTitle: 'providerEdit.docTitle', link: { href: '/providers', label: 'nav.providers' }, nav: '/providers' },
+    '/admins': { title: 'page.admins.title', subtitle: 'page.admins.sub', docTitle: 'admins.docTitle', status: 'status.loading' },
 };

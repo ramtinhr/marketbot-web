@@ -27,7 +27,7 @@ docker compose --profile dev up    # Vite with hot reload, http://localhost:5173
 Same shape as the bot's and marketbot-api's workflows.
 
 - **CI** (`.github/workflows/ci.yml`, every push and PR to `main`): typecheck, tests, build and a compose file check, then the image is built and, off pull requests, pushed to `ghcr.io/<repo>` as `main`, `latest` and the commit sha. Merges to `main` are announced in Telegram.
-- **Deploy** (`.github/workflows/deploy.yml`, manual): pulls the chosen tag on the runner, side-loads it to the server over SSH, and runs `docker-compose.prod.yml` there. The container listens on `127.0.0.1:WEB_PORT` only; marketbot-api's nginx serves it on `WEB_DOMAIN` over HTTPS behind the API's basic auth, so deploy the API first, with `WEB_DOMAIN` and `WEB_PORT` in its `API_ENV`, and issue the certificate for `WEB_DOMAIN` once (see that repo's `docker-compose.prod.yml`).
+- **Deploy** (`.github/workflows/deploy.yml`, manual): pulls the chosen tag on the runner, side-loads it to the server over SSH, and runs `docker-compose.prod.yml` there. The container listens on `127.0.0.1:WEB_PORT` only; marketbot-api's nginx serves it on `WEB_DOMAIN` over HTTPS, so deploy the API first, with `WEB_DOMAIN` and `WEB_PORT` in its `API_ENV`, and issue the certificate for `WEB_DOMAIN` once (see that repo's `docker-compose.prod.yml`).
 
 The deploy uses the same `production` environment settings as the other repos: secrets `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `SSH_HOST`, `SSH_USER`, optionally `WEB_ENV` (the server's `.env`: `WEB_PORT`, `API_PORT`) and `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID_CICD`; variables `WEB_DEPLOY_PATH` and optionally `SSH_PORT`.
 
@@ -36,7 +36,13 @@ The deploy uses the same `production` environment settings as the other repos: s
 The app calls `API_BASE`, from `src/lib/api.ts`: same-origin `/api/v1` unless `VITE_API_BASE` is set at build time.
 
 - **Same origin (recommended).** Serve `dist/` from the nginx that fronts the API, or use the image here: `docker build -t marketbot-web . && docker run -e API_UPSTREAM=http://127.0.0.1:8080 -e WEB_PORT=8081 --network host marketbot-web`. `deploy/nginx.conf.template` serves the app with an SPA fallback, proxies `/api/` (including the market page's WebSocket at `/api/v1/exchange/ws`) and `/health`.
-- **Another origin.** Build with `VITE_API_BASE=https://api.example.com/api/v1`. marketbot-api allows CORS from any origin, including `PATCH` and the `x-marketbot-intent` header. But the production API sits behind nginx **basic auth**, and browsers send CORS preflights without credentials, so preflighted requests (every order, every provider change) would get 401. For cross-origin use, either exempt `OPTIONS` from basic auth in the API's nginx or put the app behind the same auth on the same domain.
+- **Another origin.** Not supported for signed-in use: the API's session cookie is `SameSite=Strict` and CORS is open without credentials, so a dashboard on another site could sign in and still be answered 401 on everything else. Serve it the way `deploy/nginx.conf.template` does, with `/api` proxied on the same origin.
+
+## Sign-in
+
+`/login` is the only page reachable without a session; every other route sends you there and back (`?next=`). The session is an HttpOnly cookie the API sets, which this app never reads: it asks `GET /auth/me` on load, and any `401` afterwards (session expired, password changed elsewhere, admin removed) returns to the sign-in page. Sign out from the sidebar, under your name.
+
+Admins are managed on **Admins** (`/admins`): add one (with a generated password if you like), reset another admin's password (signs them out everywhere), remove one, or change your own. The first admin comes from `ADMIN_USERNAME`/`ADMIN_PASSWORD` in marketbot-api's `.env`; see that repo's README, Sign-in.
 
 ## Layout
 
