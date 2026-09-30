@@ -49,16 +49,18 @@
 }
 
 /* ---------- Dark theme (default) ---------- */
+/* Neutrals are Binance's dark palette: #0B0E11 page, #181A20 panels,
+   #1E2329/#2B3139 raised surfaces and lines, #EAECEF/#848E9C/#5E6673 text. */
 :root,
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #101114;
-    --sidebar-bg: #16171a;
-    --surface: #1a1b1e;
-    --surface-hover: #202126;
-    --surface-2: #202126;
-    --border: #292a2e;
-    --border-soft: #212226;
+    --bg: #0b0e11;
+    --sidebar-bg: #181a20;
+    --surface: #181a20;
+    --surface-hover: #1e2329;
+    --surface-2: #1e2329;
+    --border: #2b3139;
+    --border-soft: #1e2329;
     --accent: #4d6bfe;
     --accent-hover: #6580ff;
     --accent-soft: rgba(77, 107, 254, 0.16);
@@ -69,11 +71,11 @@
     --red-soft: rgba(255, 92, 92, 0.14);
     --amber: #f5a623;
     --amber-soft: rgba(245, 166, 35, 0.14);
-    --text: #eceef0;
-    --text-dim: #9a9ca3;
-    --text-faint: #63656c;
+    --text: #eaecef;
+    --text-dim: #848e9c;
+    --text-faint: #5e6673;
     --shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
-    --scrollbar: #35363b;
+    --scrollbar: #474d57;
 }
 
 /* ---------- Light theme ---------- */

@@ -29,13 +29,13 @@ export function tokens(): ChartTokens {
     const css = getComputedStyle(document.documentElement);
     const v = (name: string, fallback: string) => (css.getPropertyValue(name) || '').trim() || fallback;
     return {
-        text: v('--text', '#eceef0'),
-        textDim: v('--text-dim', '#9a9ca3'),
-        textFaint: v('--text-faint', '#63656c'),
-        surface: v('--surface', '#1a1b1e'),
-        surface2: v('--surface-2', '#202126'),
-        border: v('--border', '#292a2e'),
-        borderSoft: v('--border-soft', '#212226'),
+        text: v('--text', '#eaecef'),
+        textDim: v('--text-dim', '#848e9c'),
+        textFaint: v('--text-faint', '#5e6673'),
+        surface: v('--surface', '#181a20'),
+        surface2: v('--surface-2', '#1e2329'),
+        border: v('--border', '#2b3139'),
+        borderSoft: v('--border-soft', '#1e2329'),
         accent: v('--accent', '#4d6bfe'),
         green: v('--green', '#2fd66c'),
         red: v('--red', '#ff5c5c'),
