@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketBot Dashboard</title>
+    <!-- Settle theme, language and direction before the first paint: a
+         dashboard that renders LTR/dark and then flips is worse than one that
+         takes a moment longer to appear. The app re-applies the same values. -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            try {
+                var theme = localStorage.getItem('marketbot-theme');
+                if (theme === 'light' || theme === 'dark') root.setAttribute('data-theme', theme);
+                var lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('marketbot-lang')
+                    || (navigator.languages || [navigator.language || ''])[0] || 'en';
+                if (String(lang).toLowerCase().split('-')[0] === 'fa') {
+                    root.setAttribute('lang', 'fa');
+                    root.setAttribute('dir', 'rtl');
+                }
+            } catch (e) { /* private mode: defaults stand */ }
+        })();
+    </script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

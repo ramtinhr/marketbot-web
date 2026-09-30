@@ -1,0 +1,175 @@
+name: Deploy
+
+# Manual only, like the bot's and the API's deploys.
+#
+# Deploys to the same host as the bot and marketbot-api. The dashboard is
+# served publicly by marketbot-api's nginx on WEB_DOMAIN, so deploy the API
+# (with WEB_DOMAIN and WEB_PORT in its API_ENV) first.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (e.g. latest, main, or a full commit sha)"
+        required: true
+        default: "latest"
+
+concurrency:
+  group: deploy-production-web
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image reference
+        id: img
+        run: echo "ref=${IMAGE,,}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+
+      # The server cannot reach ghcr.io, so the runner does all registry work
+      # and the image travels to the server over SSH.
+      - name: Pull image on the runner
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker pull "${{ steps.img.outputs.ref }}"
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<CONF
+          Host target
+            HostName ${{ secrets.SSH_HOST }}
+            User ${{ secrets.SSH_USER }}
+            Port ${{ vars.SSH_PORT || '22' }}
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+          CONF
+
+      # WEB_ENV is optional and holds this service's .env: WEB_PORT (must match
+      # the API's) and API_PORT (the API's PORT), when they differ from the
+      # defaults 8081 and 8080.
+      - name: Build .env for the server
+        env:
+          WEB_ENV: ${{ secrets.WEB_ENV }}
+        run: |
+          umask 077
+          printf '%s\n' "$WEB_ENV" > env.out
+          # The deploy chooses the image; it is not part of the stored secret.
+          sed -i '/^MARKETBOT_WEB_IMAGE=/d' env.out
+          echo "MARKETBOT_WEB_IMAGE=${{ steps.img.outputs.ref }}" >> env.out
+
+      - name: Ship compose file and .env
+        run: |
+          DEPLOY_PATH="${{ vars.WEB_DEPLOY_PATH }}"
+          ssh target "mkdir -p '$DEPLOY_PATH'"
+          scp docker-compose.prod.yml target:"$DEPLOY_PATH/docker-compose.yml"
+          scp env.out target:"$DEPLOY_PATH/.env"
+          ssh target "chmod 600 '$DEPLOY_PATH/.env'"
+
+      # Shipped every time: the tag is reused across builds, so "already
+      # present" says nothing about whether it is current.
+      - name: Ship web image to the server
+        run: |
+          docker save "${{ steps.img.outputs.ref }}" \
+            | gzip -1 \
+            | ssh target "gunzip | docker load"
+
+      - name: Start the web app
+        run: |
+          ssh target bash -eu <<'REMOTE'
+            cd "${{ vars.WEB_DEPLOY_PATH }}"
+            docker compose up -d --remove-orphans
+            docker compose ps
+          REMOTE
+
+      # /healthz is the container itself; /health goes through its proxy to
+      # the API, which catches the usual mistake - API not deployed, or
+      # API_PORT not matching the API's PORT.
+      - name: Health check
+        run: |
+          ssh target bash -eu <<'REMOTE'
+            PORT=$(grep -E '^WEB_PORT=' "${{ vars.WEB_DEPLOY_PATH }}/.env" | cut -d= -f2 || true)
+            PORT="${PORT:-8081}"
+            for i in $(seq 1 30); do
+              if curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null \
+                && body=$(curl -fsS "http://127.0.0.1:$PORT/health"); then
+                echo "web up on port $PORT, API behind it answers: $body"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "web or the API behind it did not answer - last answers and recent logs:"
+            curl -sS "http://127.0.0.1:$PORT/healthz" || true
+            curl -sS "http://127.0.0.1:$PORT/health" || true
+            docker logs --tail 100 marketbot-web || true
+            exit 1
+          REMOTE
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "### Web deploy ${{ job.status }}"
+            echo ""
+            echo "- Image: \`${{ steps.img.outputs.ref }}\`"
+            echo "- Commit: \`${{ github.sha }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Requires the repository secrets TELEGRAM_BOT_TOKEN and
+      # TELEGRAM_CHAT_ID_CICD; with either unset these steps quietly do nothing.
+      - name: Compose Telegram message
+        id: notify_msg
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          IMAGE_REF: ${{ steps.img.outputs.ref }}
+        run: |
+          set -euo pipefail
+
+          repo_url="${{ github.server_url }}/${{ github.repository }}"
+          short_sha=$(printf '%s' "${{ github.sha }}" | cut -c1-7)
+          image=$(printf '%s' "${IMAGE_REF:-${{ inputs.image_tag }}}" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+
+          case "$JOB_STATUS" in
+            success) headline="🚀 <b>Web deploy succeeded</b>" ;;
+            cancelled) headline="⚪️ <b>Web deploy cancelled</b>" ;;
+            *) headline="🔥 <b>Web deploy FAILED</b>" ;;
+          esac
+
+          {
+            echo "text<<TELEGRAM_EOF"
+            echo "${headline}"
+            echo ""
+            echo "📦 <code>${image}</code>"
+            echo "🔖 <code>${short_sha}</code>"
+            echo "👤 ${{ github.actor }}"
+            echo ""
+            echo "<a href=\"${repo_url}/actions/runs/${{ github.run_id }}\">deploy run</a>"
+            echo "TELEGRAM_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Notify Telegram
+        if: always()
+        uses: ./.github/actions/telegram-notify
+        with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID_CICD }}
+          message: ${{ steps.notify_msg.outputs.text }}
+
+      - name: Clean up
+        if: always()
+        run: rm -f env.out ~/.ssh/id_deploy

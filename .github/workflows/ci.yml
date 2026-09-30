@@ -1,0 +1,150 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    name: Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          # The Dockerfile's build stage.
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate compose files
+        run: |
+          # The prod file reads env_file: .env, which only exists on a real
+          # host, and refuses to interpolate without its required variables, so
+          # CI supplies placeholders - this checks the file's shape, not the values.
+          touch .env
+          MARKETBOT_WEB_IMAGE=ci docker compose -f docker-compose.prod.yml config -q
+          docker compose -f docker-compose.yml --profile dev config -q
+
+  image:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Pull requests only build, to verify the Dockerfile still works.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # VITE_API_BASE is left empty: the app calls same-origin /api/v1, which
+      # the image's nginx proxies to marketbot-api.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Announce merges to main in Telegram. Requires the repository secrets
+  # TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID_CICD; with either unset the job runs
+  # and quietly does nothing.
+  notify:
+    name: Notify Telegram
+    runs-on: ubuntu-latest
+    needs: [test, image]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      # The commit subject and author are attacker-controlled text: they reach
+      # bash through the environment, never through ${{ }} interpolation.
+      - name: Compose message
+        id: msg
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_AUTHOR: ${{ github.event.head_commit.author.name }}
+          TEST_RESULT: ${{ needs.test.result }}
+          IMAGE_RESULT: ${{ needs.image.result }}
+        run: |
+          set -euo pipefail
+
+          escape() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+
+          subject=$(printf '%s' "$COMMIT_MESSAGE" | head -n 1 | escape)
+          author=$(printf '%s' "$COMMIT_AUTHOR" | escape)
+          short_sha=$(printf '%s' "${{ github.sha }}" | cut -c1-7)
+          repo_url="${{ github.server_url }}/${{ github.repository }}"
+
+          if [ "$TEST_RESULT" = "success" ] && [ "$IMAGE_RESULT" = "success" ]; then
+            headline="✅ <b>marketbot-web merged to main</b>"
+            status="CI green - image pushed as <code>latest</code>"
+          else
+            headline="❌ <b>marketbot-web merged to main - CI failed</b>"
+            status="test: <code>${TEST_RESULT}</code> · image: <code>${IMAGE_RESULT}</code>"
+          fi
+
+          {
+            echo "text<<TELEGRAM_EOF"
+            echo "${headline}"
+            echo ""
+            echo "<code>${short_sha}</code> ${subject}"
+            echo "👤 ${author}"
+            echo "🔧 ${status}"
+            echo ""
+            echo "<a href=\"${repo_url}/commit/${{ github.sha }}\">commit</a> · <a href=\"${repo_url}/actions/runs/${{ github.run_id }}\">CI run</a>"
+            echo "TELEGRAM_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/telegram-notify
+        with:
+          bot_token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          chat_id: ${{ secrets.TELEGRAM_CHAT_ID_CICD }}
+          message: ${{ steps.msg.outputs.text }}

@@ -1,0 +1,45 @@
+# Local development. marketbot-api is not defined here: run it from its own
+# repo (`npm run dev` there, or its docker-compose.yml), and it in turn needs
+# the bot's Postgres, Redis and Kafka (`docker compose up -d` in marketbot).
+#
+#   docker compose up --build          the production image, at http://localhost:8081
+#   docker compose --profile dev up    Vite with hot reload, at http://localhost:5173
+#
+# Plain `npm run dev` is the same as the second one without Docker. Both
+# services read API_PROXY_TARGET, WEB_PORT and VITE_API_BASE from .env if it
+# exists (see .env.example).
+
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-}
+    image: marketbot-web:dev
+    container_name: marketbot-web
+    # Host network, like marketbot-api's own compose file: the API it proxies
+    # to is at localhost:8080 on this host.
+    network_mode: host
+    environment:
+      API_UPSTREAM: ${API_PROXY_TARGET:-http://127.0.0.1:8080}
+      WEB_HOST: 127.0.0.1
+      WEB_PORT: ${WEB_PORT:-8081}
+    restart: unless-stopped
+
+  vite:
+    profiles: [dev]
+    image: node:22-alpine
+    container_name: marketbot-web-vite
+    working_dir: /app
+    network_mode: host
+    command: ["sh", "-c", "npm ci && npm run dev"]
+    environment:
+      API_PROXY_TARGET: ${API_PROXY_TARGET:-http://127.0.0.1:8080}
+    volumes:
+      - .:/app
+      # The container's own node_modules, so it never mixes with the host's.
+      - node_modules:/app/node_modules
+
+volumes:
+  node_modules:
+    name: marketbot-web_node_modules

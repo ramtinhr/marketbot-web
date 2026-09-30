@@ -1,0 +1,34 @@
+# Production compose file. Never builds - it runs the exact image CI built,
+# side-loaded by the deploy workflow. Config comes from the .env next to this
+# file on the server, which the deploy workflow writes from GitHub Secrets.
+#
+# Deployed to the same host as the bot and marketbot-api. This container has
+# no TLS and no login of its own: it listens on loopback only, and
+# marketbot-api's nginx serves it on WEB_DOMAIN over HTTPS, behind the same
+# basic auth as the API (see that repo's deploy/nginx). Deploy the API first.
+
+services:
+  web:
+    image: ${MARKETBOT_WEB_IMAGE:?MARKETBOT_WEB_IMAGE must be set in .env}
+    # This host has no route to a registry, so a pull would hang instead of
+    # failing usefully.
+    pull_policy: never
+    container_name: marketbot-web
+    env_file: .env
+    environment:
+      # marketbot-api on this host. nginx here proxies /api and /health to it
+      # directly, so the browser only ever talks to one origin.
+      API_UPSTREAM: http://127.0.0.1:${API_PORT:-8080}
+      # Loopback only. On the host network 0.0.0.0 would publish the dashboard,
+      # and the API behind it, to the internet without basic auth.
+      WEB_HOST: 127.0.0.1
+      # Must match WEB_PORT in marketbot-api's .env, where its nginx looks.
+      WEB_PORT: ${WEB_PORT:-8081}
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:${WEB_PORT:-8081}/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
