@@ -383,7 +383,7 @@ function TradeForm({ m, side }: { m: MarketController; side: Side }) {
             </div>
             <div className="mk-avail">
                 <span>{t('market.form.available')}</span>
-                <b>{s.userId ? `${fmtAsset(available, asset, { floor: true })} ${side === 'buy' ? quoteLabel() : base}` : '—'}</b>
+                <b>{s.userId ? <><bdi>{fmtAsset(available, asset, { floor: true })}</bdi> {side === 'buy' ? quoteLabel() : base}</> : '—'}</b>
             </div>
             <div className="mk-preview" aria-live="polite"><Preview m={m} side={side} /></div>
             <button type="submit" className={`mk-submit ${side}`} disabled={busy || !s.userId}>

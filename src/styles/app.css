@@ -1492,6 +1492,11 @@ body.page-market {
     --accent-hover: #f8d12f;
     --accent-soft: rgba(240, 185, 11, 0.14);
     --accent-text: #f0b90b;
+    /* Figures in the interface face with tabular digits, as on Binance: a
+       monospace stack has no Persian, so labels and figures would otherwise
+       come from two different typefaces side by side. */
+    --mono: var(--sans);
+    font-variant-numeric: tabular-nums;
 }
 :root[data-theme="light"] .mk-page { --accent-text: #b88a00; --accent-soft: rgba(240, 185, 11, 0.18); }
 
@@ -1977,15 +1982,23 @@ body.page-market {
    liquidity came from in a column of its own. */
 .mk-trade-head,
 .mk-trade-row { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) 62px 66px; }
+.mk-trade-head > :last-child,
 .mk-trade-row > :last-child { text-align: end; }
-#marketTrades { max-height: calc(34 * 23px); overflow-y: auto; }
+/* The list keeps a fixed gutter for its scrollbar, and the header is padded by
+   the same width, so the last column ends at one edge whether it scrolls or not. */
+.mk-trade-head { border-bottom: 1px solid var(--border); padding-inline-end: 14px; }
+#marketTrades { max-height: calc(30 * 27px); overflow-y: auto; scrollbar-gutter: stable; }
+#marketTrades::-webkit-scrollbar { width: 6px; }
+#marketTrades::-webkit-scrollbar-thumb { border: none; }
 .mk-trade-row {
     font-family: var(--mono);
     font-size: 12px;
-    line-height: 23px;
-    border-radius: 4px;
+    line-height: 26px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
     font-variant-numeric: tabular-nums;
 }
+.mk-trade-row:last-child { border-bottom: none; }
+.mk-trade-row:hover { background: var(--surface-hover); }
 .mk-trade-row > * { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mk-trade-row.buy .mk-price { color: var(--green); }
 .mk-trade-row.sell .mk-price { color: var(--red); }
@@ -2111,15 +2124,46 @@ body.page-market {
     direction: ltr;
 }
 
-/* Prices and sizes on the market page are Latin figures in columns; mirrored
-   they would still read correctly, but a grouped number next to a unit must not
-   have its parts reordered by the bidi algorithm. */
+/* Market figures are Latin runs, so a column of them only lines up digit under
+   digit when it is right-aligned; left-aligned, 518.66 and 1.59 end at
+   different places. Every figure column is therefore right-aligned, with its
+   header over it the same way. The figures are set left to right so an
+   overflowing one loses its end, not its leading digits. The price cell keeps
+   the page's direction so the users' dot sits on its outer edge, as in English.
+   A trade's source is a word, not a figure, and closes the row on the left. */
+[dir="rtl"] .mk-book-head > *,
 [dir="rtl"] .mk-row > *,
-[dir="rtl"] .mk-trade-row > *,
+[dir="rtl"] .mk-trade-head > *,
+[dir="rtl"] .mk-trade-row > * { text-align: right; }
+[dir="rtl"] .mk-row > :not(:first-child),
+[dir="rtl"] .mk-trade-row > :not(:first-child):not(:last-child) { direction: ltr; }
+[dir="rtl"] .mk-trade-head > :last-child,
+[dir="rtl"] .mk-trade-row > :last-child { text-align: left; }
 [dir="rtl"] .mk-stat strong,
-[dir="rtl"] .mk-mid strong,
+[dir="rtl"] .mk-headline strong,
+[dir="rtl"] .mk-mid strong {
+    direction: ltr;
+    text-align: right;
+}
+[dir="rtl"] .mk-ohlc b,
+[dir="rtl"] .mk-balances td:not(:first-child) {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+[dir="rtl"] .mk-balances th,
+[dir="rtl"] .mk-balances td { text-align: right; }
 [dir="rtl"] .mk-field input {
-    unicode-bidi: plaintext;
+    direction: ltr;
+    text-align: left;
+}
+
+/* Arabic script is joined: tracking pulls the letters of a word apart, and
+   there are no capitals for the uppercase labels to shrink into. */
+[dir="rtl"] .mk-book-head,
+[dir="rtl"] .mk-trade-head,
+[dir="rtl"] .mk-balances th {
+    letter-spacing: 0;
+    font-size: 11px;
 }
 
 /* A disclosure triangle points at the content it opens. */
