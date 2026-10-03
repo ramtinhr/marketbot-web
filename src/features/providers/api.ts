@@ -4,11 +4,16 @@ import { request } from '../../shared/api';
 import { useLiveQuery } from '../../shared/hooks';
 import { registerProviders } from '../../shared/lib';
 
+/** What a credential does; the bot's catalogue may add kinds this build does not name. */
+export type CredentialKind = 'api_key' | 'signing_secret' | 'private_key' | 'login_secret' | 'bearer_token' | (string & {});
+
 export interface Credential {
     field: string;
+    kind: CredentialKind;
+    /** The API's English name, used when this build has no words for the kind. */
     label: string;
-    hint?: string;
     env: string;
+    required: boolean;
     stored: boolean;
     unreadable?: boolean;
     mask?: string;
@@ -20,8 +25,9 @@ export interface Credential {
 export interface HostUrl {
     field: string;
     label: string;
-    hint?: string;
-    env?: string;
+    /** The bot's own note on the host, in English. */
+    note?: string | null;
+    env?: string | null;
     required?: boolean;
     default: string | null;
     override: string | null;
@@ -60,6 +66,8 @@ export interface AvailableProvider {
 export interface ProviderSettings {
     providers: ProviderSetting[];
     available_codes: AvailableProvider[];
+    /** Whose venue list this is: the running bot's, or the API's builtin copy while no bot publishes. */
+    catalog_source: 'bot' | 'builtin';
     credentials_available: boolean;
     bot_publishing: boolean;
 }

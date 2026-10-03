@@ -12,7 +12,7 @@ runtime.register('en', en);
 runtime.register('fa', fa);
 runtime.init();
 
-export const { t, plural, format, setLocale, available } = runtime;
+export const { t, has, plural, format, setLocale, available } = runtime;
 export type { Vars };
 
 const useLocaleStore = create<{ locale: string }>()(() => ({ locale: runtime.getLocale() }));

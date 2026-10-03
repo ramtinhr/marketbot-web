@@ -3,6 +3,7 @@ import { Fragment, type ReactNode } from 'react';
 import { useI18n } from '../../../i18n';
 import { StatusBadge } from '../../../shared/ui';
 import type { Credential, CreditLine, ProviderSetting } from '../api';
+import { useFieldLabels } from '../labels';
 
 /** Badges separated by spaces, as the cells have always read. */
 function Spaced({ items }: { items: ReactNode[] }) {
@@ -16,15 +17,16 @@ export function useCreditLabel() {
 
 function CredentialBadge({ c, active }: { c: Credential; active: boolean }) {
     const { t } = useI18n();
-    if (c.unreadable) return <StatusBadge tone="failed" title={t('providers.cred.unreadable')}>{c.label} ⚠</StatusBadge>;
-    if (c.stored) return <StatusBadge tone="ok" title={t('providers.cred.stored')}>{c.label}</StatusBadge>;
+    const label = useFieldLabels().credential(c);
+    if (c.unreadable) return <StatusBadge tone="failed" title={t('providers.cred.unreadable')}>{label} ⚠</StatusBadge>;
+    if (c.stored) return <StatusBadge tone="ok" title={t('providers.cred.stored')}>{label}</StatusBadge>;
     // The bot falls back to its own .env, so "not stored here" is not "the bot
     // has no key" - and saying so wrongly sends someone pasting a key that was
     // never missing.
     if (c.active_source === 'environment') {
-        return <StatusBadge tone="simulated" title={t('providers.cred.fromEnv', { env: c.env })}>{t('providers.cred.envBadge', { label: c.label })}</StatusBadge>;
+        return <StatusBadge tone="simulated" title={t('providers.cred.fromEnv', { env: c.env })}>{t('providers.cred.envBadge', { label })}</StatusBadge>;
     }
-    return <StatusBadge tone={active ? 'pending' : ''} title={t('providers.cred.missing')}>{t('providers.cred.missingBadge', { label: c.label })}</StatusBadge>;
+    return <StatusBadge tone={active ? 'pending' : ''} title={t('providers.cred.missing')}>{t('providers.cred.missingBadge', { label })}</StatusBadge>;
 }
 
 export function CredentialCell({ p }: { p: ProviderSetting }) {
@@ -35,6 +37,7 @@ export function CredentialCell({ p }: { p: ProviderSetting }) {
 
 export function HostCell({ p }: { p: ProviderSetting }) {
     const { t } = useI18n();
+    const labels = useFieldLabels();
     if (!p.urls.length) return <span className="muted">—</span>;
     return (
         <div className="prov-hosts">
@@ -45,7 +48,7 @@ export function HostCell({ p }: { p: ProviderSetting }) {
                     : t('providers.host.default');
                 return (
                     <div className="mt-small" title={title} key={u.field}>
-                        <span className="muted">{u.label}</span> <span className="prov-mono">{u.effective || '—'}</span>
+                        <span className="muted">{labels.host(u)}</span> <span className="prov-mono">{u.effective || '—'}</span>
                         {overridden && <> <StatusBadge tone="simulated">{t('providers.host.overrideBadge')}</StatusBadge></>}
                     </div>
                 );

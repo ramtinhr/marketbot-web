@@ -5,6 +5,7 @@ import { escapeHtml } from '../../../../shared/lib';
 import { usePageStatus } from '../../../../shared/stores/pageStatus';
 import { Html } from '../../../../shared/ui';
 import { providersApi, type Credential } from '../../api';
+import { useFieldLabels } from '../../labels';
 import type { Save, SectionProps } from './types';
 
 /** Where the key the bot uses comes from. */
@@ -26,21 +27,24 @@ function SourceLine({ c }: { c: Credential }) {
 
 function CredentialField({ code, c, disabled, save }: { code: string; c: Credential; disabled: boolean; save: Save }) {
     const { t } = useI18n();
+    const labels = useFieldLabels();
     const { showError } = usePageStatus();
     const [value, setValue] = useState('');
+    const label = labels.credential(c);
+    const hint = labels.credentialHint(c);
 
     async function onSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!value.trim()) { showError(msg('providerEdit.credentials.needValue')); return; }
-        await save(() => providersApi.putSettings(code, { [c.field]: value }), msg('providerEdit.credentials.saved', { field: c.field }));
+        await save(() => providersApi.putSettings(code, { [c.field]: value }), msg('providerEdit.credentials.saved', { field: label }));
         // Cleared whatever happened: a key left sitting in a form field is a
         // key in the page's memory for as long as the tab is open.
         setValue('');
     }
 
     function onClear() {
-        if (!window.confirm(t('providerEdit.credentials.confirmClear', { field: c.field, code }))) return;
-        void save(() => providersApi.clearSetting(code, c.field), msg('providerEdit.credentials.cleared', { field: c.field }));
+        if (!window.confirm(t('providerEdit.credentials.confirmClear', { field: label, code }))) return;
+        void save(() => providersApi.clearSetting(code, c.field), msg('providerEdit.credentials.cleared', { field: label }));
     }
 
     const id = `cred-${c.field}`;
@@ -48,7 +52,11 @@ function CredentialField({ code, c, disabled, save }: { code: string; c: Credent
         <form className="mt-form prov-field" onSubmit={onSubmit}>
             <div className="mt-row">
                 <div className="filter-field mt-grow">
-                    <label htmlFor={id}>{c.label}{c.hint && <> <span className="mt-label-note">— {c.hint}</span></>}</label>
+                    <label htmlFor={id}>
+                        {label}
+                        {c.required && <> <span className="mt-label-note">{t('providerEdit.credentials.required')}</span></>}
+                        {hint && <> <span className="mt-label-note">— {hint}</span></>}
+                    </label>
                     <input id={id} type="password" autoComplete="new-password" spellCheck={false} disabled={disabled}
                            placeholder={t(c.stored ? 'providerEdit.credentials.replace' : 'providerEdit.credentials.paste')}
                            value={value} onChange={(e) => setValue(e.target.value)} />

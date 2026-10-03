@@ -4,19 +4,21 @@ import { msg, useI18n } from '../../../../i18n';
 import { escapeHtml } from '../../../../shared/lib';
 import { Html } from '../../../../shared/ui';
 import { providersApi, type HostUrl } from '../../api';
+import { useFieldLabels } from '../../labels';
 import type { Save, SectionProps } from './types';
 
 function HostField({ code, u, save }: { code: string; u: HostUrl; save: Save }) {
     const { t } = useI18n();
+    const label = useFieldLabels().host(u);
     const [value, setValue] = useState(u.override || '');
     const fallback = u.default || (u.env ? t('providerEdit.hosts.noDefaultEnv', { env: u.env }) : t('providerEdit.hosts.noDefault'));
 
     function onSubmit(e: FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        void save(() => providersApi.putSettings(code, { [u.field]: value.trim() || null }), msg('providerEdit.hosts.saved', { field: u.field }));
+        void save(() => providersApi.putSettings(code, { [u.field]: value.trim() || null }), msg('providerEdit.hosts.saved', { field: label }));
     }
 
-    const onReset = () => void save(() => providersApi.clearSetting(code, u.field), msg('providerEdit.hosts.reset', { field: u.field }));
+    const onReset = () => void save(() => providersApi.clearSetting(code, u.field), msg('providerEdit.hosts.reset', { field: label }));
 
     const id = `host-${u.field}`;
     return (
@@ -24,9 +26,9 @@ function HostField({ code, u, save }: { code: string; u: HostUrl; save: Save }) 
             <div className="mt-row">
                 <div className="filter-field mt-grow">
                     <label htmlFor={id}>
-                        {u.label}
+                        {label}
                         {u.required && <> <span className="mt-label-note">{t('providerEdit.hosts.required')}</span></>}
-                        {u.hint && <> <span className="mt-label-note">— {u.hint}</span></>}
+                        {u.note && <> <span className="mt-label-note">— {u.note}</span></>}
                     </label>
                     <input id={id} type="url" inputMode="url" spellCheck={false} placeholder={fallback}
                            value={value} onChange={(e) => setValue(e.target.value)} />
