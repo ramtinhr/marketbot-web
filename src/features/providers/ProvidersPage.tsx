@@ -90,6 +90,7 @@ export default function ProvidersPage() {
                 {notes.map((note, i) => <NoteView key={notes.length - i} note={note} />)}
                 {data && !data.credentials_available && <Html as="div" className="mt-notice red" k="providers.noCredentialsKey" />}
                 {data && !data.bot_publishing && <div className="mt-notice">{t('providers.notPublishing')}</div>}
+                {data && data.bot_publishing && data.catalog_source === 'builtin' && <div className="mt-notice">{t('providers.catalogBuiltin')}</div>}
             </div>
 
             <Panel title={t('providers.panel.title')} count={providers.length} hint={t('providers.panel.hint')}>
