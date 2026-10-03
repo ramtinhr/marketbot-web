@@ -48,7 +48,7 @@ export function HostCell({ p }: { p: ProviderSetting }) {
                     : t('providers.host.default');
                 return (
                     <div className="mt-small" title={title} key={u.field}>
-                        <span className="muted">{labels.host(u)}</span> <span className="prov-mono">{u.effective || '—'}</span>
+                        <bdi className="muted">{labels.host(u)}</bdi> <bdi className="prov-mono" dir="ltr">{u.effective || '—'}</bdi>
                         {overridden && <> <StatusBadge tone="simulated">{t('providers.host.overrideBadge')}</StatusBadge></>}
                     </div>
                 );
