@@ -1387,6 +1387,7 @@ const locale: LocaleDef = {
         'admins.error.passwordShort': 'رمز باید دست‌کم {min} نویسه باشد.',
         'admins.error.mismatch': 'دو رمز یکسان نیستند.',
         'admins.error.current': 'رمز فعلی خود را وارد کنید.',
+        'admins.empty': 'هنوز مدیری وجود ندارد.',
         'admins.footer': 'MarketBot · مدیران · رمزها به‌صورت درهم‌سازی‌شده ذخیره می‌شوند و دوباره نمایش داده نمی‌شوند',
     },
 };

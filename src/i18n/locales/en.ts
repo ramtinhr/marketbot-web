@@ -1366,6 +1366,7 @@ const locale: LocaleDef = {
         'admins.error.passwordShort': 'The password must be at least {min} characters.',
         'admins.error.mismatch': 'The two passwords do not match.',
         'admins.error.current': 'Enter your current password.',
+        'admins.empty': 'No admins yet.',
         'admins.footer': 'MarketBot · Admins · passwords are stored hashed and never shown again',
     },
 };
