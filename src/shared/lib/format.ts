@@ -22,6 +22,12 @@ export const fmtToman = (n: number | null | undefined): string =>
 export const fmtQty = (n: number | null | undefined, d = 4): string =>
     isMissing(n) ? '—' : format.number(n, { maximumFractionDigits: d });
 
+/** A headline figure shortened past a million (2.69B), or a dash. Pair it with the exact value somewhere it can be read. */
+export const fmtCompact = (n: number | null | undefined): string =>
+    isMissing(n) ? '—' : Math.abs(n) < 1e6
+        ? format.number(n, { maximumFractionDigits: Math.abs(n) < 100 ? 2 : 0 })
+        : format.number(n, { notation: 'compact', maximumFractionDigits: 2 });
+
 /** A percentage with an explicit sign, or a dash. */
 export const fmtSignedPct = (n: number | null | undefined, d = 4): string =>
     isMissing(n) ? '—' : (n >= 0 ? '+' : '') + format.percent(n, d);

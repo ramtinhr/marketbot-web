@@ -19,7 +19,10 @@ export default function OpportunitiesPage() {
         <>
             <Panel title={t('opps.summary.title')} hint={t('opps.summary.hint')}>
                 {data ? <ProjectionSummary s={data.summary || {}} /> : <Skeleton>{t('opps.summary.loading')}</Skeleton>}
-                <Html as="div" className="summary-caption" k="opps.summary.caption" />
+                <details className="osum-help">
+                    <summary>{t('opps.summary.howToRead')}</summary>
+                    <Html as="div" className="summary-caption" k="opps.summary.caption" />
+                </details>
             </Panel>
 
             <Panel title={t('opps.panel.title')} count={data?.total || 0} hint={t('opps.panel.hint')}>

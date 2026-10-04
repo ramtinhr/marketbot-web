@@ -44,6 +44,8 @@ export const marketApi = {
 const REJECT_KEYS: Record<string, string> = {
     invalid_order: 'market.reject.invalidOrder',
     unknown_user: 'market.reject.unknownUser',
+    user_inactive: 'market.reject.userInactive',
+    wallet_inactive: 'market.reject.walletInactive',
     insufficient_balance: 'market.reject.insufficientBalance',
     order_not_found: 'market.reject.orderNotFound',
     order_closed: 'market.reject.orderClosed',
