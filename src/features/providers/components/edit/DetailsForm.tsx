@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 
 import { msg, useI18n } from '../../../../i18n';
 import { escapeHtml } from '../../../../shared/lib';
-import { Field, Html } from '../../../../shared/ui';
+import { confirmDialog, Field, Html } from '../../../../shared/ui';
 import { providersApi } from '../../api';
 import type { SectionProps } from './types';
 
@@ -19,8 +19,13 @@ export function DetailsForm({ p, save }: SectionProps) {
         void save(() => providersApi.rename(p.code, name.trim()), msg('providerEdit.nameSaved'));
     }
 
-    function onToggle(want: boolean) {
-        if (!want && !window.confirm(t('providers.confirmDeactivate', { code: p.code }))) return;
+    async function onToggle(want: boolean) {
+        if (!want && !await confirmDialog({
+            tone: 'danger',
+            title: t('providers.confirmDeactivate.title', { code: p.code }),
+            message: t('providers.confirmDeactivate.body'),
+            confirmLabel: t('providers.confirmDeactivate.action'),
+        })) return;
         setActive(want);
         void save(() => providersApi.setActive(p.code, want), msg(want ? 'providerEdit.activated' : 'providerEdit.deactivated'));
     }

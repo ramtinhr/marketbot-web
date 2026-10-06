@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useI18n } from '../../../i18n';
 import { cx } from '../../../shared/lib';
 import { usePageStatus } from '../../../shared/stores/pageStatus';
-import { DataTable, EmptyState, Segmented, type Column } from '../../../shared/ui';
+import { confirmDialog, DataTable, EmptyState, Segmented, type Column } from '../../../shared/ui';
 import { isLive, LIVE_STATUSES, useCancelOrder, useManualOrders, type ManualLeg, type ManualOrder } from '../api';
 import { baseAsset, fmtPrice, fmtQty, VenueTag } from '../format';
 
@@ -36,8 +36,14 @@ function useCancelling() {
     const [pending, setPending] = useState<ReadonlySet<string>>(new Set());
 
     const keyOf = (orderId: string, legId?: string) => `${orderId}:${legId || ''}`;
-    const onCancel: Cancel = (orderId, legId) => {
-        if (!window.confirm(t(legId ? 'manual.orders.confirmCancelLeg' : 'manual.orders.confirmCancelAll'))) return;
+    const onCancel: Cancel = async (orderId, legId) => {
+        if (!await confirmDialog({
+            tone: 'danger',
+            title: t(legId ? 'manual.orders.confirmCancelLeg.title' : 'manual.orders.confirmCancelAll.title'),
+            message: t('manual.orders.confirmCancelBody'),
+            confirmLabel: t(legId ? 'manual.orders.confirmCancelLeg.action' : 'manual.orders.confirmCancelAll.action'),
+            cancelLabel: t('common.goBack'),
+        })) return;
         const key = keyOf(orderId, legId);
         setPending((prev) => new Set(prev).add(key));
         cancel.mutate({ orderId, legId }, {

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { usePageStatus } from '../../shared/stores/pageStatus';
 import { escapeHtml } from '../../shared/lib';
-import { EmptyState, Html, Notice, PageFooter, Panel, ProviderName, Skeleton } from '../../shared/ui';
+import { confirmDialog, EmptyState, Html, Notice, PageFooter, Panel, ProviderName, Skeleton } from '../../shared/ui';
 import { providersApi, useProviderMutation, useProviderSettings, type ProviderSetting, type ReloadResult } from './api';
 import { AddProviderForm } from './components/AddProviderForm';
 import { CredentialCell, HostCell, StatusCell } from './components/ProviderCells';
@@ -67,10 +67,15 @@ export default function ProvidersPage() {
     // Deactivating is how a venue is taken out of trading, and there is no undo
     // beyond switching it back - but it is also the thing an operator reaches
     // for when a venue is misbehaving at 3am, so it asks once and does it.
-    function toggle(p: ProviderSetting) {
+    async function toggle(p: ProviderSetting) {
         const active = !p.is_active;
         if (busy) return;
-        if (!active && !window.confirm(t('providers.confirmDeactivate', { code: p.code }))) return;
+        if (!active && !await confirmDialog({
+            tone: 'danger',
+            title: t('providers.confirmDeactivate.title', { code: p.code }),
+            message: t('providers.confirmDeactivate.body'),
+            confirmLabel: t('providers.confirmDeactivate.action'),
+        })) return;
         status.hideError();
         setNotes([]);
         setActive.mutate({ code: p.code, active }, { onSuccess: onReloaded, onError: fail });
