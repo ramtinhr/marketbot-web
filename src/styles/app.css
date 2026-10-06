@@ -414,6 +414,7 @@ a { color: inherit; }
     border-radius: var(--radius);
     padding: 14px 16px;
     box-shadow: var(--shadow);
+    min-width: 0;
 }
 .stat-label {
     font-size: 11px;
@@ -426,7 +427,10 @@ a { color: inherit; }
     font-family: var(--mono);
     font-size: 21px;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .stat-value.accent { color: var(--accent-text); }
 .stat-value.green { color: var(--green); }
