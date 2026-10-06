@@ -18,6 +18,20 @@ export const isMissing = (n: unknown): n is null | undefined => n === null || n 
 export const fmtToman = (n: number | null | undefined): string =>
     isMissing(n) ? '—' : format.number(n, { maximumFractionDigits: 0 });
 
+/**
+ * A Toman price, or a dash. Whole Toman would print every level of a coin
+ * that trades near 2 Toman as "2", so below 1,000 it keeps five to six
+ * significant digits - padded, so a column of levels lines up. Below one
+ * (a spread, say) padding would only add noise.
+ */
+export const fmtPrice = (n: number | null | undefined): string => {
+    if (isMissing(n)) return '—';
+    const abs = Math.abs(n);
+    if (abs >= 1000) return format.number(n, { maximumFractionDigits: 0 });
+    if (abs >= 1) return format.number(n, { minimumSignificantDigits: 5, maximumSignificantDigits: 6 });
+    return format.number(n, { maximumSignificantDigits: 4 });
+};
+
 /** A quantity to at most `d` decimals, or a dash. */
 export const fmtQty = (n: number | null | undefined, d = 4): string =>
     isMissing(n) ? '—' : format.number(n, { maximumFractionDigits: d });

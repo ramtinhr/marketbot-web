@@ -70,7 +70,7 @@ export function ProjectionTable({ rows, sort }: { rows: Projection[] | undefined
         { key: 'outcome', header: t('common.outcome'), sortable: true },
     ];
     return (
-        <div className="table-scroll">
+        <div className="table-scroll opps-scroll">
             <table className="data-table log-table">
                 <TableHead columns={columns} sort={sort} />
                 <tbody>
