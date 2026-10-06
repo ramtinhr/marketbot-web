@@ -2,6 +2,7 @@ import { format, msg, t, type Message } from '../../i18n';
 import { ApiError, wsUrl } from '../../shared/api';
 import { providerLabel, readStore, writeStore } from '../../shared/lib';
 import type { usePageStatus } from '../../shared/stores/pageStatus';
+import { confirmDialog } from '../../shared/ui';
 import {
     errorText, marketApi, refusalText, rejectionText, type Balance, type Depth, type ExchangeOrder, type ExchangeTrade, type ExchangeUser, type Hedging,
 } from './api';
@@ -640,7 +641,12 @@ export class MarketSession {
         // Real money leaves the exchange's venue accounts for any part that
         // takes venue liquidity: said once more, in so many words.
         if (this.modeState() === 'liveReal' && walkBook(this.takerLevels(side), side, num(price), num(quantity)).fromVenues > 0 &&
-            !window.confirm(t('market.confirmLive', { cap: fmtToman(s.hedging.max_notional_toman) }))) return;
+            !await confirmDialog({
+                tone: 'warning',
+                title: t('market.confirmLive.title'),
+                message: t('market.confirmLive.body', { cap: fmtToman(s.hedging.max_notional_toman) }),
+                confirmLabel: t('market.confirmLive.action'),
+            })) return;
 
         s.busy[side] = true;
         this.render();
@@ -751,7 +757,13 @@ export class MarketSession {
     async cancelAll() {
         const s = this.s;
         const count = s.open.size;
-        if (!count || !window.confirm(t('market.orders.confirmCancelAll', { count: format.number(count), pair: pairLabel(s.symbol) }))) return;
+        if (!count || !await confirmDialog({
+            tone: 'danger',
+            title: t('market.orders.confirmCancelAll.title'),
+            message: t('market.orders.confirmCancelAll.body', { count: format.number(count), pair: pairLabel(s.symbol) }),
+            confirmLabel: t('market.orders.confirmCancelAll.action'),
+            cancelLabel: t('common.goBack'),
+        })) return;
         s.cancelAllBusy = true;
         this.render();
         try {

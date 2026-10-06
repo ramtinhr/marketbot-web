@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { msg, rawMsg, renderMessage, useI18n, type Message } from '../../i18n';
-import { Notice, PageFooter, Panel } from '../../shared/ui';
+import { confirmDialog, Notice, PageFooter, Panel } from '../../shared/ui';
 import { useCurrentAdmin } from '../auth/store';
 import { useAdmins, useRemoveAdmin, type AdminRow } from './api';
 import { AddAdminForm, ChangeOwnPasswordForm, ResetPasswordForm } from './components/AdminForms';
@@ -19,8 +19,13 @@ export default function AdminsPage() {
 
     const done = (message: Message) => setNotice({ message, tone: 'green' });
 
-    function remove(row: AdminRow) {
-        if (!window.confirm(t('admins.confirmRemove', { username: row.username }))) return;
+    async function remove(row: AdminRow) {
+        if (!await confirmDialog({
+            tone: 'danger',
+            title: t('admins.confirmRemove.title', { username: row.username }),
+            message: t('admins.confirmRemove.body'),
+            confirmLabel: t('admins.confirmRemove.action'),
+        })) return;
         removeAdmin.mutate(row, {
             onSuccess: () => {
                 if (resetFor?.id === row.id) setResetFor(null);

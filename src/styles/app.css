@@ -808,6 +808,58 @@ footer.page-footer {
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn:disabled:hover { border-color: var(--border); background: var(--surface-2); }
 
+/* ---------- Confirm dialog ---------- */
+.confirm {
+    margin: auto;
+    padding: 0;
+    width: min(440px, calc(100vw - 32px));
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+}
+.confirm::backdrop { background: rgba(5, 7, 10, 0.6); backdrop-filter: blur(3px); }
+.confirm[open] { animation: confirm-in 0.16s ease-out; }
+.confirm[open]::backdrop { animation: confirm-fade 0.16s ease-out; }
+@keyframes confirm-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes confirm-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .confirm[open], .confirm[open]::backdrop { animation: none; } }
+
+.confirm-panel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px 14px;
+    padding: 20px 20px 16px;
+}
+.confirm-icon {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent-text);
+}
+.confirm.warning .confirm-icon { background: var(--amber-soft); color: var(--amber); }
+.confirm.danger .confirm-icon { background: var(--red-soft); color: var(--red); }
+.confirm-text { padding-top: 2px; }
+.confirm-text h2 { font-size: 15px; font-weight: 650; line-height: 1.35; }
+.confirm-message { margin-top: 6px; font-size: 13px; line-height: 1.55; color: var(--text-dim); white-space: pre-line; }
+.confirm-message strong { color: var(--text); font-weight: 650; }
+.confirm-actions {
+    grid-column: 1 / -1;
+    display: flex; justify-content: flex-end; gap: 8px;
+    margin: 4px -20px -16px; padding: 12px 20px;
+    border-top: 1px solid var(--border-soft);
+    background: var(--surface-2);
+    border-radius: 0 0 var(--radius) var(--radius);
+}
+.confirm-actions .btn { min-width: 92px; padding: 8px 16px; }
+.btn.confirm-ok { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.confirm-ok:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.confirm-ok.warning { background: var(--amber); border-color: var(--amber); color: #1a1205; }
+.btn.confirm-ok.warning:hover { background: color-mix(in srgb, var(--amber) 85%, #fff); }
+.btn.confirm-ok.danger { background: var(--red); border-color: var(--red); }
+.btn.confirm-ok.danger:hover { background: color-mix(in srgb, var(--red) 85%, #fff); }
+.confirm .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* ---------- Request log detail rows ---------- */
 .log-table tbody tr.log-row { cursor: pointer; }
 .log-table tbody tr.log-row.failed { background: color-mix(in srgb, var(--red) 5%, transparent); }

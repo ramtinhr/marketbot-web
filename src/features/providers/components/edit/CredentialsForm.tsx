@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { msg, useI18n } from '../../../../i18n';
 import { escapeHtml } from '../../../../shared/lib';
 import { usePageStatus } from '../../../../shared/stores/pageStatus';
-import { Html } from '../../../../shared/ui';
+import { confirmDialog, Html } from '../../../../shared/ui';
 import { providersApi, type Credential } from '../../api';
 import { useFieldLabels } from '../../labels';
 import type { Save, SectionProps } from './types';
@@ -42,8 +42,13 @@ function CredentialField({ code, c, disabled, save }: { code: string; c: Credent
         setValue('');
     }
 
-    function onClear() {
-        if (!window.confirm(t('providerEdit.credentials.confirmClear', { field: label, code }))) return;
+    async function onClear() {
+        if (!await confirmDialog({
+            tone: 'danger',
+            title: t('providerEdit.credentials.confirmClear.title', { field: label, code }),
+            message: t('providerEdit.credentials.confirmClear.body'),
+            confirmLabel: t('providerEdit.credentials.confirmClear.action'),
+        })) return;
         void save(() => providersApi.clearSetting(code, c.field), msg('providerEdit.credentials.cleared', { field: label }));
     }
 

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 
 import { msg, useI18n } from '../../../../i18n';
-import { Field } from '../../../../shared/ui';
+import { confirmDialog, Field } from '../../../../shared/ui';
 import { providersApi, type CreditLine } from '../../api';
 import { useCreditLabel } from '../ProviderCells';
 import type { SectionProps } from './types';
@@ -46,8 +46,13 @@ export function CreditForm({ p, save }: SectionProps) {
         void save(() => providersApi.putSettings(p.code, { credit: toBody(rows) }), msg('providerEdit.credit.saved'));
     }
 
-    function onClear() {
-        if (!window.confirm(t('providerEdit.credit.confirmClear', { code: p.code }))) return;
+    async function onClear() {
+        if (!await confirmDialog({
+            tone: 'danger',
+            title: t('providerEdit.credit.confirmClear.title', { code: p.code }),
+            message: t('providerEdit.credit.confirmClear.body'),
+            confirmLabel: t('providerEdit.credit.confirmClear.action'),
+        })) return;
         void save(() => providersApi.clearSetting(p.code, 'credit'), msg('providerEdit.credit.cleared'));
     }
 

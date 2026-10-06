@@ -4,6 +4,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { RequireAuth } from '../features/auth/RequireAuth';
 import { useAuthStore } from '../features/auth/store';
+import { ConfirmHost } from '../shared/ui';
 import Layout from './layout/Layout';
 import { queryClient } from './queryClient';
 
@@ -58,6 +59,7 @@ export default function App() {
                     </Routes>
                 </Suspense>
             </BrowserRouter>
+            <ConfirmHost />
         </QueryClientProvider>
     );
 }
