@@ -26,6 +26,7 @@ export type BookLevel = [price: number, size: number];
 export interface Projection {
     id: string;
     detected_at: string;
+    symbol: string;
     buy_provider: string;
     sell_provider: string;
     outcome: string;
