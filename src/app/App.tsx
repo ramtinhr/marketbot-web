@@ -25,6 +25,7 @@ const OrderAudit = lazy(() => import('../features/order-audit/OrderAuditPage'));
 const RequestLogs = lazy(() => import('../features/request-logs/RequestLogsPage'));
 const Providers = lazy(() => import('../features/providers/ProvidersPage'));
 const ProviderEdit = lazy(() => import('../features/providers/ProviderEditPage'));
+const Withdrawals = lazy(() => import('../features/withdrawals/WithdrawalsPage'));
 const Admins = lazy(() => import('../features/admins/AdminsPage'));
 
 export default function App() {
@@ -53,6 +54,7 @@ export default function App() {
                             <Route path="request-logs" element={<RequestLogs />} />
                             <Route path="providers" element={<Providers />} />
                             <Route path="provider-edit" element={<ProviderEdit />} />
+                            <Route path="withdrawals" element={<Withdrawals />} />
                             <Route path="admins" element={<Admins />} />
                             <Route path="*" element={<Navigate to="/dashboard" replace />} />
                         </Route>

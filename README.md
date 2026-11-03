@@ -73,3 +73,16 @@ English and Persian (فارسی), switched without a reload from the sidebar foo
 - **Charts rebuild rather than get relabelled.** ECharts paints into a canvas, so option builders depend on `useChartTokens()`, which changes on every theme or language switch.
 - **`npm test` is the guard**: it fails if a locale misses a key English has, a translation drops a `{placeholder}`, the source uses a key no catalogue defines, or the Persian font the catalogue asks for is not shipped.
 # marketbot-web
+
+## Withdrawals
+
+`/withdrawals` lists the Mini App's withdrawal requests with status and search
+filters. Admins can edit pending requests (amount, destination, network,
+beneficiary and note), approve them for processing, or reject them to release
+the reserved balance. After paying externally, use **Mark paid** with the payout
+reference to debit the reserved funds. Approval itself does not send a payment.
+Every action requires a reason and confirmation; stale reviews fail with 409.
+
+Requires the matching withdrawal endpoints in marketbot-api and the Mini App's
+current shared withdrawal schema. The page has English and Persian labels and
+uses explicit refresh while an operator reviews a stable snapshot.

@@ -22,6 +22,7 @@ export const NAV: NavGroup[] = [
         label: 'nav.group.trading',
         items: [
             { href: '/market', label: 'nav.market', icon: icon(<><path d="M4 20V10M9.5 20V4M15 20v-8M20.5 20V7" /><path d="M2.5 10h3M8 4h3M13.5 12h3M19 7h3" /></>) },
+            { href: '/withdrawals', label: 'nav.withdrawals', icon: icon(<><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4" /></>) },
             { href: '/manual-trade', label: 'nav.manualTrade', icon: icon(<><path d="M7 4v16M3 16l4 4 4-4" /><path d="M17 20V4M13 8l4-4 4 4" /></>) },
         ],
     },
@@ -81,6 +82,7 @@ export const PAGES: Record<string, PageMeta> = {
     '/request-logs': { title: 'page.requestLogs.title', subtitle: 'page.requestLogs.sub', docTitle: 'logs.docTitle', link: { href: '/dashboard', label: 'nav.overview' } },
     '/providers': { title: 'page.providers.title', subtitle: 'page.providers.sub', docTitle: 'providers.docTitle', link: { href: '/dashboard', label: 'nav.overview' } },
     '/provider-edit': { title: 'page.providerEdit.title', subtitle: 'page.providerEdit.sub', docTitle: 'providerEdit.docTitle', link: { href: '/providers', label: 'nav.providers' }, nav: '/providers' },
+    '/withdrawals': { title: 'withdrawals.title', subtitle: 'withdrawals.subtitle', docTitle: 'withdrawals.docTitle', status: 'status.loading' },
     '/admins': { title: 'page.admins.title', subtitle: 'page.admins.sub', docTitle: 'admins.docTitle', status: 'status.loading' },
 };
 
