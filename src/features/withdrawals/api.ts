@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { request } from '../../shared/api';
+import { financialRequest, request } from '../../shared/api';
 import { useLiveQuery } from '../../shared/hooks';
 import type { PageInfo } from '../../shared/ui';
 
@@ -46,7 +46,7 @@ export function useReviewWithdrawal() {
     const client = useQueryClient();
     return useMutation({
         mutationFn: ({ row, action, body }: { row: Withdrawal; action: ReviewAction; body: ReviewBody }) =>
-            request<{ withdrawal: Withdrawal }>(`/withdrawals/${encodeURIComponent(row.id)}${action === 'edit' ? '' : `/${action}`}`, {
+            financialRequest<{ withdrawal: Withdrawal }>(`/withdrawals/${encodeURIComponent(row.id)}${action === 'edit' ? '' : `/${action}`}`, {
                 method: action === 'edit' ? 'PATCH' : 'POST', body, headers: { 'x-marketbot-intent': 'withdrawal-review' },
             }),
         onSettled: () => client.invalidateQueries({ queryKey: KEY }),

@@ -1,6 +1,6 @@
 # marketbot-web
 
-The dashboard for [MarketBot](../marketbot), as a React app. It used to be plain HTML pages served by [marketbot-api](../marketbot-dashboard); it is now its own project and talks to that API over `/api/v1` only.
+The dashboard for [MarketBot](../marketbot), as a React app. It used to be plain HTML pages served by [marketbot-api](../marketbot-dashboard); it is now its own project and talks to that API over `/backoffice/v1` only.
 
 Vite + React 19 + TypeScript + React Router. ECharts (npm) for the statistics charts.
 
@@ -33,9 +33,9 @@ The deploy uses the same `production` environment settings as the other repos: s
 
 ## Where the API is
 
-The app calls `API_BASE`, from `src/lib/api.ts`: same-origin `/api/v1` unless `VITE_API_BASE` is set at build time.
+The app calls `API_BASE`, from `src/lib/api.ts`: same-origin `/backoffice/v1` unless `VITE_API_BASE` is set at build time.
 
-- **Same origin (recommended).** Serve `dist/` from the nginx that fronts the API, or use the image here: `docker build -t marketbot-web . && docker run -e API_UPSTREAM=http://127.0.0.1:8080 -e WEB_PORT=8081 --network host marketbot-web`. `deploy/nginx.conf.template` serves the app with an SPA fallback, proxies `/api/` (including the market page's WebSocket at `/api/v1/exchange/ws`) and `/health`.
+- **Same origin (recommended).** Serve `dist/` from the nginx that fronts the API, or use the image here: `docker build -t marketbot-web . && docker run -e API_UPSTREAM=http://127.0.0.1:8080 -e WEB_PORT=8081 --network host marketbot-web`. `deploy/nginx.conf.template` serves the app with an SPA fallback, proxies `/api/` (including the market page's WebSocket at `/backoffice/v1/exchange/ws`) and `/health`.
 - **Another origin.** Not supported for signed-in use: the API's session cookie is `SameSite=Strict` and CORS is open without credentials, so a dashboard on another site could sign in and still be answered 401 on everything else. Serve it the way `deploy/nginx.conf.template` does, with `/api` proxied on the same origin.
 
 ## Sign-in
@@ -86,3 +86,25 @@ Every action requires a reason and confirmation; stale reviews fail with 409.
 Requires the matching withdrawal endpoints in marketbot-api and the Mini App's
 current shared withdrawal schema. The page has English and Persian labels and
 uses explicit refresh while an operator reviews a stable snapshot.
+
+Financial submissions to the updated API use durable idempotency keys. The
+shared `financialRequest` client retains a key across unresolved/network failures, page reloads
+and browser restarts using localStorage (payload digest and UUID only). Exchange
+placements with an unknown outcome are shown as unconfirmed, retain the key,
+and can be retried to reconcile the original operation. Deploy this dashboard
+with the API's financial-request/reservation migration. If browser localStorage
+is unavailable, financial submission stops before sending.
+
+### Customer management
+
+Open **Customers** in the sidebar (`/customers`). Search by name, phone, email or
+national ID; real customers are shown by default. Each customer has profile,
+wallet, bank-account, activity and admin-history sections. Wallet adjustments
+require a reason and a review step and preserve exact decimal strings and
+idempotency keys. Release operations select an admin hold rather than touching
+order or withdrawal reservations. Withdrawal and P2P decisions use the existing
+review workspace.
+
+Deploy with the matching API changes and run its migration `009_customer_audit`
+first. Admin edit history starts at that deployment; it does not backfill older
+changes. All existing admin sessions have access under the current auth model.

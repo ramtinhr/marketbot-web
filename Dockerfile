@@ -4,7 +4,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# Empty means same-origin /api/v1, proxied by the nginx below.
+# Empty means same-origin /backoffice/v1, proxied by the nginx below.
 ARG VITE_API_BASE=
 ENV VITE_API_BASE=${VITE_API_BASE}
 RUN npm run build

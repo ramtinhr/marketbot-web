@@ -12,14 +12,14 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 5173,
       proxy: {
-        '/api': { target, changeOrigin: true, ws: true },
+        '/backoffice': { target, changeOrigin: true, ws: true },
         '/health': { target, changeOrigin: true },
       },
     },
     preview: {
       port: 4173,
       proxy: {
-        '/api': { target, changeOrigin: true, ws: true },
+        '/backoffice': { target, changeOrigin: true, ws: true },
         '/health': { target, changeOrigin: true },
       },
     },

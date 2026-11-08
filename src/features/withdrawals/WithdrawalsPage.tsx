@@ -1,3 +1,5 @@
+import { P2PReviews } from './P2PReviews';
+import { CryptoWithdrawals } from './CryptoWithdrawals';
 import { useRef, useState, type FormEvent } from 'react';
 import { msg, renderMessage, useI18n, type Message } from '../../i18n';
 import { useListControls } from '../../shared/hooks';
@@ -111,6 +113,8 @@ export default function WithdrawalsPage() {
         </div> },
     ];
     return <>
+        <P2PReviews />
+            <CryptoWithdrawals />
         {notice && <Notice tone="green">{renderMessage(notice)}</Notice>}
         {selection && <ReviewForm key={`${selection.row.id}:${selection.action}`} selection={selection} networks={query.data?.networks ?? {}}
             onClose={() => setSelection(null)} onDone={message => { setSelection(null); setNotice(message); list.setPage(1); }} />}

@@ -1,7 +1,7 @@
 {
   "name": "marketbot-web",
   "version": "1.0.0",
-  "description": "React dashboard for the MarketBot trading bot - talks to marketbot-api over /api/v1",
+  "description": "React dashboard for the MarketBot trading bot - talks to marketbot-api over /backoffice/v1",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",

@@ -1,5 +1,5 @@
 import { t } from '../../i18n';
-import { ApiError, request } from '../../shared/api';
+import { ApiError, financialRequest, request } from '../../shared/api';
 
 // The exchange's payloads are passed through as the engine sends them.
 export type ExchangeUser = { id: string; username: string; display_name: string };
@@ -31,13 +31,13 @@ export const marketApi = {
     balances: (userId: string) => request<{ balances: Balance[] }>(`/exchange/users/${user(userId)}/balances`),
 
     place: (body: { user_id: string; symbol: string | null; side: string; price: string; quantity: string }) =>
-        post<{ order?: ExchangeOrder; orders?: ExchangeOrder[]; trades?: ExchangeTrade[]; event?: { hedges?: unknown[] } }>('/exchange/orders', body),
+        financialRequest<{ order?: ExchangeOrder; orders?: ExchangeOrder[]; trades?: ExchangeTrade[]; event?: { hedges?: unknown[] } }>('/exchange/orders', { method: 'POST', body, headers: INTENT }),
     cancel: (orderId: string, userId: string | null) =>
         post<{ order?: ExchangeOrder }>(`/exchange/orders/${encodeURIComponent(orderId)}/cancel`, { user_id: userId }),
     cancelAll: (userId: string | null, symbol: string | null) =>
         post<{ cancelled?: number; failed?: number; failures?: unknown[] }>('/exchange/orders/cancel-all', { user_id: userId, symbol }),
     faucet: (userId: string, symbol: string | null) =>
-        post<{ balances?: Balance[]; credited: Record<string, number> }>(`/exchange/users/${user(userId)}/faucet`, { symbol }),
+        financialRequest<{ balances?: Balance[]; credited: Record<string, number> }>(`/exchange/users/${user(userId)}/faucet`, { method: 'POST', body: { symbol }, headers: INTENT }),
 };
 
 // The engine's refusal codes; the text is the page's to say.

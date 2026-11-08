@@ -71,17 +71,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to deployment registry
+        if: github.event_name != 'pull_request' && vars.LOCAL_REGISTRY != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.LOCAL_REGISTRY }}
+          username: ${{ secrets.LOCAL_REG_USER }}
+          password: ${{ secrets.LOCAL_REG_PASS }}
+
       - name: Image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: |
+            ${{ env.IMAGE }}
+            ${{ vars.LOCAL_REGISTRY != '' && format('{0}/{1}', vars.LOCAL_REGISTRY, github.repository) || '' }}
           tags: |
             type=ref,event=branch
             type=sha,format=long
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # VITE_API_BASE is left empty: the app calls same-origin /api/v1, which
+      # VITE_API_BASE is left empty: the app calls same-origin /backoffice/v1, which
       # the image's nginx proxies to marketbot-api.
       - name: Build and push
         uses: docker/build-push-action@v6

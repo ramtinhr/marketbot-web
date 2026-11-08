@@ -34,11 +34,16 @@ jobs:
 
       - name: Resolve image reference
         id: img
-        run: echo "ref=${IMAGE,,}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+        env:
+          LOCAL_REGISTRY: ${{ vars.LOCAL_REGISTRY }}
+        run: |
+          if [ -n "$LOCAL_REGISTRY" ]; then IMAGE="$LOCAL_REGISTRY/$GITHUB_REPOSITORY"; fi
+          echo "ref=${IMAGE,,}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
 
       # The server cannot reach ghcr.io, so the runner does all registry work
       # and the image travels to the server over SSH.
       - name: Pull image on the runner
+        if: vars.LOCAL_REGISTRY == ''
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker pull "${{ steps.img.outputs.ref }}"
@@ -83,10 +88,26 @@ jobs:
       # Shipped every time: the tag is reused across builds, so "already
       # present" says nothing about whether it is current.
       - name: Ship web image to the server
+        if: vars.LOCAL_REGISTRY == ''
         run: |
           docker save "${{ steps.img.outputs.ref }}" \
             | gzip -1 \
             | ssh target "gunzip | docker load"
+
+      - name: Prepare deployment registry images
+        if: vars.LOCAL_REGISTRY != ''
+        env:
+          LOCAL_REGISTRY: ${{ vars.LOCAL_REGISTRY }}
+          LOCAL_REG_USER: ${{ secrets.LOCAL_REG_USER }}
+          LOCAL_REG_PASS: ${{ secrets.LOCAL_REG_PASS }}
+          IMAGE_REF: ${{ steps.img.outputs.ref }}
+        run: |
+          set -euo pipefail
+          [[ "$LOCAL_REGISTRY" =~ ^[a-zA-Z0-9.-]+(:[0-9]+)?$ ]]
+          [[ "$LOCAL_REG_USER" =~ ^[a-zA-Z0-9_.-]+$ ]]
+          [[ "$IMAGE_REF" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/:@-]+$ ]]
+          printf '%s' "$LOCAL_REG_PASS" | ssh target "docker login '$LOCAL_REGISTRY' -u '$LOCAL_REG_USER' --password-stdin"
+          ssh target "docker pull '$IMAGE_REF'"
 
       - name: Start the web app
         run: |
