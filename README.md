@@ -64,6 +64,17 @@ Admins are managed on **Admins** (`/admins`): add one (with a generated password
 
 A new page needs a route in `App.tsx` and an entry in `nav.tsx` (`PAGES`, and `NAV` if it belongs in the menu).
 
+## Styling and state
+
+Tailwind CSS is integrated with Vite and available across both frontend builds.
+Utilities use the `tw:` prefix. `src/styles/tailwind.css` applies the shared form
+control styling to existing filter fields and customer workspaces, using the
+same theme variables for dark/light themes and RTL layouts. The existing
+stylesheet remains in place; Tailwind Preflight is omitted to preserve it.
+
+Zustand already manages authentication, theme, shell and page status. React Query
+manages server data; component-local form state stays local.
+
 ## Languages
 
 English and Persian (فارسی), switched without a reload from the sidebar footer. The choice is remembered per browser; `?lang=fa` forces one for a visit, and a first-time visitor gets what their browser asks for.

@@ -1,0 +1,46 @@
+/* Utilities are available app-wide. Keep the existing reset and theme tokens. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme) prefix(tw);
+@import "tailwindcss/utilities.css" layer(utilities) prefix(tw);
+
+/* One form-control treatment for existing pages and customer workspaces. */
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) :is(input, select, textarea):not([type="checkbox"], [type="radio"], [type="range"]) {
+    @apply tw:box-border tw:w-full tw:min-w-0 tw:rounded-lg tw:border tw:border-solid tw:px-3 tw:py-2.5 tw:text-sm tw:transition-colors;
+    min-height: 40px;
+    background-color: var(--surface-2);
+    border-color: var(--border);
+    color: var(--text);
+    font-family: inherit;
+    line-height: 1.5;
+    outline: none;
+    color-scheme: dark;
+}
+[data-theme="light"] :is(.filter-field, .customers-workspace, .customer-toolbar, .filters) :is(input, select, textarea) { color-scheme: light; }
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) :is(input, select, textarea):hover:not(:disabled) { border-color: var(--text-faint); }
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) :is(input, select, textarea):focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    outline: none;
+}
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) :is(input, select, textarea):disabled { opacity: .55; cursor: not-allowed; }
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) input::placeholder { color: var(--text-faint); }
+:is(.filter-field, .customers-workspace, .customer-toolbar, .filters) select:not([multiple]) {
+    appearance: none;
+    padding-inline-end: 36px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b95a5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+[dir="rtl"] :is(.filter-field, .customers-workspace, .customer-toolbar, .filters) select:not([multiple]) { background-position: left 12px center; }
+.customer-toolbar > :is(label, .filter-field), .filters > label {
+    @apply tw:flex tw:min-w-0 tw:flex-col tw:gap-2;
+    flex: 1 1 180px;
+    color: var(--text-dim);
+    font-size: 12px;
+}
+.customer-toolbar .filter-field > label { color: var(--text-dim); font-size: 12px; text-transform: none; letter-spacing: normal; }
+.customer-toolbar > .btn { min-height: 40px; flex-shrink: 0; }
+@media (max-width: 520px) {
+    .customer-toolbar > :is(label, .filter-field) { flex-basis: 100%; }
+    .customer-toolbar > .btn { flex: 1 1 auto; }
+}

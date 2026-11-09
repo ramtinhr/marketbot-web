@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useI18n } from '../../i18n';
 import { request } from '../../shared/api';
-import { DataTable, Notice, Panel } from '../../shared/ui';
+import { DataTable, Field, Notice, Panel } from '../../shared/ui';
 import '../customers/customers.css';
 
 type Row = Record<string, string | null>;
@@ -25,10 +25,10 @@ export default function OperationsRecordsPage({ resource }: { resource: string }
     });
     const fields = resource === 'bank-accounts' ? ['user_id'] : resource === 'payments' ? ['user_id', 'status'] : ['user_id', 'status', 'asset'];
     return <Panel title={t(`ops.${resource}`)} hint={t('ops.readOnly')}>
-        <form className="customer-toolbar" onSubmit={e => { e.preventDefault(); setFilters({ ...draft }); setOffset(0); }}>
-            {fields.map(key => <label key={key}>{t(key === 'user_id' ? 'ops.user' : key === 'status' ? 'ops.status' : 'ops.asset')}
-                <input value={draft[key as keyof typeof draft]} maxLength={128} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
-            </label>)}
+        <form className="customer-toolbar tw:gap-4" onSubmit={e => { e.preventDefault(); setFilters({ ...draft }); setOffset(0); }}>
+            {fields.map(key => <Field key={key} id={`ops-${resource}-${key}`} label={t(key === 'user_id' ? 'ops.user' : key === 'status' ? 'ops.status' : 'ops.asset')}>
+                <input id={`ops-${resource}-${key}`} dir="ltr" autoComplete="off" value={draft[key as keyof typeof draft]} maxLength={128} onChange={e => setDraft({ ...draft, [key]: e.target.value })} />
+            </Field>)}
             <button className="btn primary" type="submit">{t('common.apply')}</button>
             <button className="btn" type="button" disabled={query.isFetching} onClick={() => void query.refetch()}>{t('common.refresh')}</button>
         </form>

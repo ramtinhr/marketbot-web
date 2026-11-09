@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 // In development the API runs separately (marketbot-api, `npm run dev`, port
 // 8080 by default). Proxying it keeps every request same-origin, exactly as it
@@ -8,7 +9,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.API_PROXY_TARGET || 'http://127.0.0.1:8080';
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     server: {
       port: 5173,
       proxy: {
