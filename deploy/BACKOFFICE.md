@@ -58,19 +58,43 @@ it overrides the namespace default.
 ## Production
 
 1. Deploy the matching marketbot-api revision.
-2. Confirm loopback port 8083 is free, then run:
+2. Confirm loopback port 8083 is free. Run this repository's **Deploy** workflow
+   with `delivery=source` on the updated commit. The release now builds both
+   variants with explicit `VITE_PANEL` arguments and activates `web` (8081) and
+   `backoffice` (8083) together under the existing `current` release.
+   Set `BACKOFFICE_PORT=8083` in `WEB_ENV` if specifying ports explicitly.
+   From the deployed web `current` directory, check:
 
    ```sh
-   docker compose -p pars-backoffice -f docker-compose.backoffice.yml up -d --build
+   docker compose ps
    curl --fail http://127.0.0.1:8083/healthz
    ```
 
-3. Point the `backoffice.parscryptoexchange.com` DNS A record at the host. Add AAAA
-   only if IPv6 is served there. Provision its TLS certificate through the
-   existing host certificate workflow.
-4. Install `deploy/backoffice.public.nginx.conf` in the host nginx configuration.
-   Adjust the certificate paths and upstream port if needed, then run
-   `nginx -t` and reload nginx through the existing service manager.
+3. Point the `backoffice.parscryptoexchange.com` DNS A record at the host.
+   In Cloudflare, use DNS-only while issuing the first certificate. Keep
+   public port 80 reachable for the HTTP challenge.
+4. The API's existing Docker nginx ingress now includes this hostname. Set
+   `BACKOFFICE_DOMAIN=backoffice.parscryptoexchange.com` and `BACKOFFICE_PORT=8083`
+   in its `API_ENV` deployment secret (these are also the defaults), then deploy
+   the API release to ship the updated nginx templates and Compose settings.
+   Before the certificate exists, this host serves the ACME challenge and
+   returns 503 for other requests. From the deployed API's `current` directory:
+
+   ```sh
+   docker compose run --rm --entrypoint certbot certbot certonly \
+     --webroot -w /var/www/certbot \
+     -d backoffice.parscryptoexchange.com
+   docker compose restart nginx
+   docker compose exec -T nginx nginx -t
+   ```
+
+   Certbot prompts for registration details if this installation has no account.
+   The existing Certbot service renews the certificate; nginx detects certificate
+   changes within five minutes. Restarting nginx above activates the initial
+   certificate immediately. Once HTTPS works, Cloudflare proxying may be enabled
+   using Full (strict) SSL mode. Do not install the standalone
+   `backoffice.public.nginx.conf` in this Docker ingress: it is an alternative
+   only for hosts managed through system nginx.
 5. Verify HTTPS login and `/backoffice/v1/operations/auth/me`; verify the old
    `/backoffice/v1/users` endpoint returns 404 on this domain. Check customer,
    bank, ledger and withdrawal pages with an admin session before retiring the
@@ -78,7 +102,6 @@ it overrides the namespace default.
 6. Rebuild/redeploy the default trading dashboard to remove its old menu/routes.
 
 `BACKOFFICE_PORT` and `API_PORT` may be supplied via the shell or Compose dotenv.
-Update the public proxy when changing the port. The existing trading CI/deploy
-workflow is unchanged; this panel currently uses the explicit Compose command
-above. DNS, certificates and production deployment are not performed by the code
+Update the public proxy when changing the port. The CI image matrix also builds both variants for the optional image delivery
+mode. Source delivery builds both on the server from the selected commit. DNS, certificates and production deployment are not performed by the code
 changes in this repository.

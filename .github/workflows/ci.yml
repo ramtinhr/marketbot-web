@@ -56,11 +56,19 @@ jobs:
           # host, and refuses to interpolate without its required variables, so
           # CI supplies placeholders - this checks the file's shape, not the values.
           touch .env
-          MARKETBOT_WEB_IMAGE=ci docker compose -f docker-compose.prod.yml config -q
+          MARKETBOT_WEB_IMAGE=ci MARKETBOT_BACKOFFICE_IMAGE=ci-backoffice docker compose -f docker-compose.prod.yml config -q
           docker compose -f docker-compose.yml --profile dev config -q
 
   image:
-    name: Build and verify container
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - panel: trading
+            suffix: ''
+          - panel: backoffice
+            suffix: '-backoffice'
+    name: Build and verify ${{ matrix.panel }} container
     needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -74,17 +82,19 @@ jobs:
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - name: Image name
         id: image
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}${{ matrix.suffix }}" >> "$GITHUB_OUTPUT"
       - name: Build once
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: Dockerfile
+          build-args: VITE_PANEL=${{ matrix.panel }}
           load: true
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
           labels: org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.panel }}
+          # Cache storage is optional; read-only runtime tokens must not fail the build.
+          cache-to: type=gha,mode=max,ignore-error=true,scope=${{ matrix.panel }}
       - name: Verify production image
         env:
           IMAGE: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}

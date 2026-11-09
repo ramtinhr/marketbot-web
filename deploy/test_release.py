@@ -21,6 +21,7 @@ printf '%s:docker %s\n' "$PWD" "$*" >> "$COMMAND_LOG"
 if [[ "$*" == *'src/migrate.js'* && "$FAIL_STAGE" == migration ]]; then exit 42; fi
 if [[ "$*" == *'up -d'* && "$PWD" == "$FAIL_RELEASE" ]]; then exit 42; fi
 if [[ "$*" == *'exec -T'* && "$PWD" == "$UNREADY_RELEASE" ]]; then exit 42; fi
+if [[ "$*" == *'config --services'* ]]; then echo web; fi
 if [[ "$*" == *'ps -a -q'* ]]; then echo test-container; fi
 if [[ "$*" == *'com.docker.compose.project'* ]]; then echo legacy-stack; fi
 if [[ "$*" == *'{{.Image}}'* || "$*" == *'{{.Id}}'* ]]; then echo sha256:1234; fi
@@ -157,6 +158,9 @@ cat >/dev/null
         line = next(line for line in (DEPLOY / 'project.sh').read_text().splitlines() if line.startswith('dockerfiles='))
         for dockerfile in shlex.split(line.removeprefix('dockerfiles=(').removesuffix(')')):
             self.assertIn(f"-f 'source/{dockerfile}'", commands)
+        self.assertIn('--build-arg VITE_PANEL=trading', commands)
+        self.assertIn('--build-arg VITE_PANEL=backoffice', commands)
+        self.assertIn('MARKETBOT_BACKOFFICE_IMAGE=', config)
         self.assertNotIn('docker pull', commands)
         self.assertNotIn('transfer ', commands)
         self.assertIn('DEPLOY_ROOT=/opt/test', config)

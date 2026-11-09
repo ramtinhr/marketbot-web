@@ -26,6 +26,8 @@ if [[ ! -f "$previous/docker-compose.yml" && -f "$root/docker-compose.yml" && -f
   if [[ -d "$root/nginx" ]]; then cp -a "$root/nginx" "$previous/"; fi
   if [[ -d "$root/config" ]]; then ln -s "$root/config" "$previous/config"; fi
   for i in "${!services[@]}"; do
+    # A newly added service is absent from an older flat deployment.
+    if ! (cd "$root"; compose config --services) | grep -qx "${services[$i]}"; then continue; fi
     container=$(cd "$root"; compose ps -a -q "${services[$i]}")
     if [[ -n "$container" ]]; then
       image_id=$(docker inspect --format '{{.Image}}' "$container")
@@ -51,6 +53,8 @@ ready() {
   if ! compose up -d --remove-orphans --wait --wait-timeout 120; then return 1; fi
   # Confirm each application container uses the resolved local release image.
   for service in "${services[@]}"; do
+    # Rollback may target a release created before the backoffice service existed.
+    if [[ "$PWD" != "$release" ]] && ! compose config --services | grep -qx "$service"; then continue; fi
     container=$(compose ps -a -q "$service") || return 1
     [[ -n "$container" ]] || return 1
     image_ref=$(compose config --images "$service") || return 1

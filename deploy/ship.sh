@@ -47,6 +47,11 @@ if [[ "$delivery" == source ]]; then
       [[ "${BOT_USERNAME:-}" =~ ^[a-zA-Z0-9_]*$ ]] || exit 1
       build_args+=(--build-arg "VITE_BOT_USERNAME=${BOT_USERNAME:-}")
     fi
+    if [[ "$project" == marketbot-web ]]; then
+      panel=trading
+      if [[ "${services[$i]}" == backoffice ]]; then panel=backoffice; fi
+      build_args+=(--build-arg "VITE_PANEL=$panel")
+    fi
     # Every forwarded argument is a validated path, generated tag, or username.
     ssh target "set -eu; cd '$release'; DOCKER_BUILDKIT=1 docker build ${build_args[*]} -f 'source/${dockerfiles[$i]}' -t '${images[$i]}' source; docker image inspect '${images[$i]}' >/dev/null"
   done

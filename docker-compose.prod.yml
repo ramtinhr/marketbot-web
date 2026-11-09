@@ -32,3 +32,28 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  backoffice:
+    image: ${MARKETBOT_BACKOFFICE_IMAGE:?MARKETBOT_BACKOFFICE_IMAGE must be set in .env}
+    # This host has no route to a registry, so a pull would hang instead of
+    # failing usefully.
+    pull_policy: never
+    container_name: marketbot-backoffice
+    env_file: ${DEPLOY_ENV_FILE:-.env}
+    environment:
+      # marketbot-api on this host. nginx here proxies /api and /health to it
+      # directly, so the browser only ever talks to one origin.
+      API_UPSTREAM: http://127.0.0.1:${API_PORT:-8080}
+      # Loopback only. On the host network 0.0.0.0 would publish the dashboard,
+      # and the API behind it, to the internet over plain HTTP.
+      WEB_HOST: 127.0.0.1
+      # Must match WEB_PORT in marketbot-api's .env, where its nginx looks.
+      WEB_PORT: ${BACKOFFICE_PORT:-8083}
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:${BACKOFFICE_PORT:-8083}/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

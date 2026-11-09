@@ -80,3 +80,18 @@ instance through its service manager, or use another free port and update the
 reverse proxy. Keep API `WEB_PORT` equal to dashboard `WEB_PORT`, and API
 `MINIAPP_PORT` equal to miniapp `WEB_PORT`. The frontend public origin and proxy
 upstream must also match its selected domain and port.
+
+
+## Trading and customer operations frontends
+
+The web release deploys two services together: `web` on `WEB_PORT` (8081) and
+`backoffice` on `BACKOFFICE_PORT` (8083). Source delivery passes
+`VITE_PANEL=trading` and `VITE_PANEL=backoffice` respectively. Both are checked
+before `current` is updated. Image delivery uses the normal image repository
+and its `-backoffice` companion, built by the CI matrix. Keep the API ingress
+`BACKOFFICE_PORT` equal to this release's `BACKOFFICE_PORT`.
+
+A backoffice host loading `/dashboard` indicates the trading artifact or
+upstream is being served. Deploy this updated web release with `delivery=source`
+and the API ingress configured for the separate backoffice listener. Adding
+`VITE_PANEL` only to runtime environment variables cannot change a built UI.
