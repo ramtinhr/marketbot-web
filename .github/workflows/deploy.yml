@@ -1,155 +1,83 @@
 name: Deploy
-
-# Manual only, like the bot's and the API's deploys.
-#
-# Deploys to the same host as the bot and marketbot-api. The dashboard is
-# served publicly by marketbot-api's nginx on WEB_DOMAIN, so deploy the API
-# (with WEB_DOMAIN and WEB_PORT in its API_ENV) first.
 on:
   workflow_dispatch:
     inputs:
+      delivery:
+        description: Delivery method (source builds on server; image transfers CI image)
+        type: choice
+        options: [source, image]
+        default: source
       image_tag:
-        description: "Image tag to deploy (e.g. latest, main, or a full commit sha)"
-        required: true
-        default: "latest"
-
+        description: 'Image mode only: CI tag (blank uses this commit)'
+        required: false
+        default: ""
+permissions:
+  contents: read
 concurrency:
   group: deploy-production-web
   cancel-in-progress: false
-
-env:
-  IMAGE: ghcr.io/${{ github.repository }}
-
 jobs:
   deploy:
-    name: Deploy to production
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # Slow SSH uploads need the full GitHub-hosted runner allowance (6 hours).
+    timeout-minutes: 360
     environment: production
     permissions:
       contents: read
       packages: read
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Resolve image reference
-        id: img
-        env:
-          LOCAL_REGISTRY: ${{ vars.LOCAL_REGISTRY }}
-        run: |
-          if [ -n "$LOCAL_REGISTRY" ]; then IMAGE="$LOCAL_REGISTRY/$GITHUB_REPOSITORY"; fi
-          echo "ref=${IMAGE,,}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
-
-      # The server cannot reach ghcr.io, so the runner does all registry work
-      # and the image travels to the server over SSH.
-      - name: Pull image on the runner
-        if: vars.LOCAL_REGISTRY == ''
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker pull "${{ steps.img.outputs.ref }}"
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        if: inputs.delivery == 'image'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          echo "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-          cat >> ~/.ssh/config <<CONF
-          Host target
-            HostName ${{ secrets.SSH_HOST }}
-            User ${{ secrets.SSH_USER }}
-            Port ${{ vars.SSH_PORT || '22' }}
-            IdentityFile ~/.ssh/id_deploy
-            IdentitiesOnly yes
-          CONF
-
-      # WEB_ENV is optional and holds this service's .env: WEB_PORT (must match
-      # the API's) and API_PORT (the API's PORT), when they differ from the
-      # defaults 8081 and 8080.
-      - name: Build .env for the server
         env:
-          WEB_ENV: ${{ secrets.WEB_ENV }}
-        run: |
-          umask 077
-          printf '%s\n' "$WEB_ENV" > env.out
-          # The deploy chooses the image; it is not part of the stored secret.
-          sed -i '/^MARKETBOT_WEB_IMAGE=/d' env.out
-          echo "MARKETBOT_WEB_IMAGE=${{ steps.img.outputs.ref }}" >> env.out
-
-      - name: Ship compose file and .env
-        run: |
-          DEPLOY_PATH="${{ vars.WEB_DEPLOY_PATH }}"
-          ssh target "mkdir -p '$DEPLOY_PATH'"
-          scp docker-compose.prod.yml target:"$DEPLOY_PATH/docker-compose.yml"
-          scp env.out target:"$DEPLOY_PATH/.env"
-          ssh target "chmod 600 '$DEPLOY_PATH/.env'"
-
-      # Shipped every time: the tag is reused across builds, so "already
-      # present" says nothing about whether it is current.
-      - name: Ship web image to the server
-        if: vars.LOCAL_REGISTRY == ''
-        run: |
-          docker save "${{ steps.img.outputs.ref }}" \
-            | gzip -1 \
-            | ssh target "gunzip | docker load"
-
-      - name: Prepare deployment registry images
-        if: vars.LOCAL_REGISTRY != ''
-        env:
-          LOCAL_REGISTRY: ${{ vars.LOCAL_REGISTRY }}
-          LOCAL_REG_USER: ${{ secrets.LOCAL_REG_USER }}
-          LOCAL_REG_PASS: ${{ secrets.LOCAL_REG_PASS }}
-          IMAGE_REF: ${{ steps.img.outputs.ref }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ vars.SSH_PORT || '22' }}
         run: |
           set -euo pipefail
-          [[ "$LOCAL_REGISTRY" =~ ^[a-zA-Z0-9.-]+(:[0-9]+)?$ ]]
-          [[ "$LOCAL_REG_USER" =~ ^[a-zA-Z0-9_.-]+$ ]]
-          [[ "$IMAGE_REF" =~ ^[a-zA-Z0-9][a-zA-Z0-9._/:@-]+$ ]]
-          printf '%s' "$LOCAL_REG_PASS" | ssh target "docker login '$LOCAL_REGISTRY' -u '$LOCAL_REG_USER' --password-stdin"
-          ssh target "docker pull '$IMAGE_REF'"
-
-      - name: Start the web app
-        run: |
-          ssh target bash -eu <<'REMOTE'
-            cd "${{ vars.WEB_DEPLOY_PATH }}"
-            docker compose up -d --remove-orphans
-            docker compose ps
-          REMOTE
-
-      # /healthz is the container itself; /health goes through its proxy to
-      # the API, which catches the usual mistake - API not deployed, or
-      # API_PORT not matching the API's PORT.
-      - name: Health check
-        run: |
-          ssh target bash -eu <<'REMOTE'
-            PORT=$(grep -E '^WEB_PORT=' "${{ vars.WEB_DEPLOY_PATH }}/.env" | cut -d= -f2 || true)
-            PORT="${PORT:-8081}"
-            for i in $(seq 1 30); do
-              if curl -fsS "http://127.0.0.1:$PORT/healthz" >/dev/null \
-                && body=$(curl -fsS "http://127.0.0.1:$PORT/health"); then
-                echo "web up on port $PORT, API behind it answers: $body"
-                exit 0
-              fi
-              sleep 2
-            done
-            echo "web or the API behind it did not answer - last answers and recent logs:"
-            curl -sS "http://127.0.0.1:$PORT/healthz" || true
-            curl -sS "http://127.0.0.1:$PORT/health" || true
-            docker logs --tail 100 marketbot-web || true
-            exit 1
-          REMOTE
-
-      - name: Report
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9.-]+$ && "$SSH_USER" =~ ^[a-zA-Z0-9_-]+$ && "$SSH_PORT" =~ ^[0-9]+$ ]] || exit 1
+          test -n "$SSH_PRIVATE_KEY" && test -n "$SSH_KNOWN_HOSTS"
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<CONF
+          Host target
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_deploy
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            BatchMode yes
+            ConnectTimeout 15
+            ServerAliveInterval 30
+            ServerAliveCountMax 10
+          CONF
+      - name: Build or transfer and activate release
+        env:
+          DEPLOY_PATH: ${{ vars.WEB_DEPLOY_PATH }}
+          RUNTIME_ENV: ${{ secrets.WEB_ENV }}
+          DELIVERY: ${{ inputs.delivery }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: bash deploy/ship.sh
+      - name: Deployment summary
         if: always()
-        run: |
-          {
-            echo "### Web deploy ${{ job.status }}"
-            echo ""
-            echo "- Image: \`${{ steps.img.outputs.ref }}\`"
-            echo "- Commit: \`${{ github.sha }}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-
+        env:
+          RESULT: ${{ job.status }}
+          IMAGE: ${{ inputs.delivery == 'image' && inputs.image_tag || github.sha }}
+        run: printf 'Deployment %s\n\nRelease %s\n' "$RESULT" "$IMAGE" >> "$GITHUB_STEP_SUMMARY"
       # Requires the repository secrets TELEGRAM_BOT_TOKEN and
       # TELEGRAM_CHAT_ID_CICD; with either unset these steps quietly do nothing.
       - name: Compose Telegram message
@@ -157,18 +85,19 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          IMAGE_REF: ${{ steps.img.outputs.ref }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_REF: ${{ inputs.delivery == 'image' && inputs.image_tag || github.sha }}
         run: |
           set -euo pipefail
 
           repo_url="${{ github.server_url }}/${{ github.repository }}"
           short_sha=$(printf '%s' "${{ github.sha }}" | cut -c1-7)
-          image=$(printf '%s' "${IMAGE_REF:-${{ inputs.image_tag }}}" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+          image=$(printf '%s' "${IMAGE_REF:-$IMAGE_TAG}" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
 
           case "$JOB_STATUS" in
-            success) headline="🚀 <b>Web deploy succeeded</b>" ;;
-            cancelled) headline="⚪️ <b>Web deploy cancelled</b>" ;;
-            *) headline="🔥 <b>Web deploy FAILED</b>" ;;
+            success) headline="🚀 <b>marketbot-web deploy succeeded</b>" ;;
+            cancelled) headline="⚪️ <b>marketbot-web deploy cancelled</b>" ;;
+            *) headline="🔥 <b>marketbot-web deploy FAILED</b>" ;;
           esac
 
           {
@@ -191,6 +120,6 @@ jobs:
           chat_id: ${{ secrets.TELEGRAM_CHAT_ID_CICD }}
           message: ${{ steps.notify_msg.outputs.text }}
 
-      - name: Clean up
+      - name: Clean credentials
         if: always()
-        run: rm -f env.out ~/.ssh/id_deploy
+        run: rm -f env.out ~/.ssh/id_deploy ~/.ssh/config ~/.ssh/known_hosts

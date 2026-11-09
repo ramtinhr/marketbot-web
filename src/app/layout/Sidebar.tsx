@@ -1,3 +1,4 @@
+import { IS_BACKOFFICE, PANEL_NAME } from '../panel';
 import { Link } from 'react-router-dom';
 
 import { useI18n } from '../../i18n';
@@ -15,8 +16,8 @@ export function Sidebar({ activeHref }: { activeHref: string }) {
             <div className="sidebar-brand">
                 <div className="brand-mark" aria-hidden="true">M</div>
                 <div>
-                    <h1>MarketBot</h1>
-                    <div className="sub">{t('shell.brandSub')}</div>
+                    <h1>{PANEL_NAME}</h1>
+                    <div className="sub">{t(IS_BACKOFFICE ? 'ops.customers' : 'shell.brandSub')}</div>
                 </div>
             </div>
             <nav className="nav">

@@ -1,3 +1,4 @@
+import { IS_BACKOFFICE, PANEL_NAME } from '../../app/panel';
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type RefObject } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -62,8 +63,8 @@ export default function LoginPage() {
                 <div className="auth-brand">
                     <div className="brand-mark" aria-hidden="true">M</div>
                     <div>
-                        <div className="auth-brand-name">MarketBot</div>
-                        <div className="auth-brand-sub">{t('login.brandSub')}</div>
+                        <div className="auth-brand-name">{PANEL_NAME}</div>
+                        <div className="auth-brand-sub">{t(IS_BACKOFFICE ? 'ops.customers' : 'login.brandSub')}</div>
                     </div>
                 </div>
 

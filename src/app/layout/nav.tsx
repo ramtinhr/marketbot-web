@@ -1,3 +1,4 @@
+import { HOME_PATH, IS_BACKOFFICE } from '../panel';
 import type { ReactNode } from 'react';
 
 import { Icon } from '../../shared/ui';
@@ -10,7 +11,7 @@ const icon = (paths: ReactNode) => <Icon>{paths}</Icon>;
 export interface NavItem { href: string; label: string; icon: ReactNode }
 export interface NavGroup { label: string; items: NavItem[] }
 
-export const NAV: NavGroup[] = [
+const TRADING_NAV: NavGroup[] = [
     {
         label: 'nav.group.monitor',
         items: [
@@ -22,7 +23,6 @@ export const NAV: NavGroup[] = [
         label: 'nav.group.trading',
         items: [
             { href: '/market', label: 'nav.market', icon: icon(<><path d="M4 20V10M9.5 20V4M15 20v-8M20.5 20V7" /><path d="M2.5 10h3M8 4h3M13.5 12h3M19 7h3" /></>) },
-            { href: '/withdrawals', label: 'nav.withdrawals', icon: icon(<><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4" /></>) },
             { href: '/manual-trade', label: 'nav.manualTrade', icon: icon(<><path d="M7 4v16M3 16l4 4 4-4" /><path d="M17 20V4M13 8l4-4 4 4" /></>) },
         ],
     },
@@ -49,7 +49,6 @@ export const NAV: NavGroup[] = [
         label: 'nav.group.configuration',
         items: [
             { href: '/providers', label: 'nav.providers', icon: icon(<><rect x="3" y="4" width="18" height="7" rx="2" /><rect x="3" y="13" width="18" height="7" rx="2" /><circle cx="7.5" cy="7.5" r="1" fill="currentColor" stroke="none" /><circle cx="7.5" cy="16.5" r="1" fill="currentColor" stroke="none" /></>) },
-            { href: '/customers', label: 'customers.title', icon: icon(<><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 4a4 4 0 0 1 0 8M18 15a6 6 0 0 1 4 5" /></>) },
             { href: '/admins', label: 'nav.admins', icon: icon(<><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M19 8v6M16 11h6" /></>) },
         ],
     },
@@ -88,12 +87,24 @@ export const PAGES: Record<string, PageMeta> = {
     '/admins': { title: 'page.admins.title', subtitle: 'page.admins.sub', docTitle: 'admins.docTitle', status: 'status.loading' },
 };
 
-/** '/' and a trailing slash both mean the dashboard. */
+/** Resolve the root URL to this panel's home page. */
 export function normalizePath(pathname: string): string {
     const path = (pathname || '/').replace(/\/+$/, '') || '/';
-    return path === '/' ? '/dashboard' : path;
+    return path === '/' ? HOME_PATH : path;
 }
 
 export function pageFor(path: string): PageMeta {
-    return PAGES[path] || PAGES['/dashboard'];
+    return PAGES[path] || PAGES[HOME_PATH];
+}
+
+const operationItem = (path: string, label: string): NavItem => ({href: path, label,
+    icon: icon(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 8h10M7 12h10M7 16h6" /></>)});
+export const NAV: NavGroup[] = IS_BACKOFFICE ? [
+    {label: 'ops.customers', items: [operationItem('/customers', 'customers.title'), operationItem('/bank-accounts', 'ops.bank-accounts')]},
+    {label: 'ops.money', items: ['withdrawals','deposits','payments','ledger'].map(name => operationItem(`/${name}`, `ops.${name}`))},
+    {label: 'ops.trading', items: ['auctions','p2p'].map(name => operationItem(`/${name}`, `ops.${name}`))},
+    {label: 'nav.group.configuration', items: [operationItem('/admins', 'nav.admins')]},
+] : TRADING_NAV;
+for (const name of ['bank-accounts','deposits','payments','ledger','auctions','p2p']) {
+    PAGES[`/${name}`] = {title: `ops.${name}`, subtitle: '', docTitle: `ops.${name}`};
 }

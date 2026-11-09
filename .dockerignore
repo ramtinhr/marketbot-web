@@ -6,3 +6,5 @@ dist
 *.log
 *.tsbuildinfo
 docker-compose*.yml
+
+dist-backoffice

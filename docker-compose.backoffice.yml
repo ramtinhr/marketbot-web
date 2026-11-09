@@ -1,0 +1,21 @@
+# Separate deployment of the shared UI, with only customer operations routes.
+# docker compose -p pars-backoffice -f docker-compose.backoffice.yml up -d --build
+services:
+  backoffice:
+    build:
+      context: .
+      args:
+        VITE_PANEL: backoffice
+    image: ${BACKOFFICE_IMAGE:-pars-backoffice:local}
+    environment:
+      API_UPSTREAM: http://127.0.0.1:${API_PORT:-8080}
+      WEB_HOST: 127.0.0.1
+      WEB_PORT: ${BACKOFFICE_PORT:-8083}
+    network_mode: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:${BACKOFFICE_PORT:-8083}/healthz || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

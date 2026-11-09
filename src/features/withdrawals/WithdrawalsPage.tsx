@@ -1,4 +1,3 @@
-import { P2PReviews } from './P2PReviews';
 import { CryptoWithdrawals } from './CryptoWithdrawals';
 import { useRef, useState, type FormEvent } from 'react';
 import { msg, renderMessage, useI18n, type Message } from '../../i18n';
@@ -113,7 +112,6 @@ export default function WithdrawalsPage() {
         </div> },
     ];
     return <>
-        <P2PReviews />
             <CryptoWithdrawals />
         {notice && <Notice tone="green">{renderMessage(notice)}</Notice>}
         {selection && <ReviewForm key={`${selection.row.id}:${selection.action}`} selection={selection} networks={query.data?.networks ?? {}}

@@ -1,5 +1,10 @@
 # marketbot-web
 
+Customer operations now have a separate build and deployment for
+`backoffice.parscryptoexchange.com`: see [backoffice deployment](deploy/BACKOFFICE.md).
+
+CI/CD setup and runtime secret templates: [deploy/README.md](deploy/README.md).
+
 The dashboard for [MarketBot](../marketbot), as a React app. It used to be plain HTML pages served by [marketbot-api](../marketbot-dashboard); it is now its own project and talks to that API over `/backoffice/v1` only.
 
 Vite + React 19 + TypeScript + React Router. ECharts (npm) for the statistics charts.
@@ -24,12 +29,9 @@ docker compose --profile dev up    # Vite with hot reload, http://localhost:5173
 
 ## CI and deploy
 
-Same shape as the bot's and marketbot-api's workflows.
-
-- **CI** (`.github/workflows/ci.yml`, every push and PR to `main`): typecheck, tests, build and a compose file check, then the image is built and, off pull requests, pushed to `ghcr.io/<repo>` as `main`, `latest` and the commit sha. Merges to `main` are announced in Telegram.
-- **Deploy** (`.github/workflows/deploy.yml`, manual): pulls the chosen tag on the runner, side-loads it to the server over SSH, and runs `docker-compose.prod.yml` there. The container listens on `127.0.0.1:WEB_PORT` only; marketbot-api's nginx serves it on `WEB_DOMAIN` over HTTPS, so deploy the API first, with `WEB_DOMAIN` and `WEB_PORT` in its `API_ENV`, and issue the certificate for `WEB_DOMAIN` once (see that repo's `docker-compose.prod.yml`).
-
-The deploy uses the same `production` environment settings as the other repos: secrets `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS`, `SSH_HOST`, `SSH_USER`, optionally `WEB_ENV` (the server's `.env`: `WEB_PORT`, `API_PORT`) and `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID_CICD`; variables `WEB_DEPLOY_PATH` and optionally `SSH_PORT`.
+See [the CI/CD guide](deploy/README.md). Manual deployment defaults to source
+builds on the host, with CI image transfer available as a fallback. Configure
+`WEB_ENV` and `WEB_DEPLOY_PATH` in the GitHub production environment.
 
 ## Where the API is
 
@@ -76,7 +78,7 @@ English and Persian (فارسی), switched without a reload from the sidebar foo
 
 ## Withdrawals
 
-`/withdrawals` lists the Mini App's withdrawal requests with status and search
+In the separate backoffice build, `/withdrawals` lists the Mini App's withdrawal requests with status and search
 filters. Admins can edit pending requests (amount, destination, network,
 beneficiary and note), approve them for processing, or reject them to release
 the reserved balance. After paying externally, use **Mark paid** with the payout
@@ -97,7 +99,7 @@ is unavailable, financial submission stops before sending.
 
 ### Customer management
 
-Open **Customers** in the sidebar (`/customers`). Search by name, phone, email or
+Open **Customers** in the backoffice sidebar (`/customers`). Search by name, phone, email or
 national ID; real customers are shown by default. Each customer has profile,
 wallet, bank-account, activity and admin-history sections. Wallet adjustments
 require a reason and a review step and preserve exact decimal strings and

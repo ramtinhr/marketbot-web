@@ -1,0 +1,69 @@
+# Serves the built dashboard and proxies the API, so the browser sees one
+# origin - no CORS, and the API's SameSite session cookie is sent with every
+# request, the WebSocket included.
+# ${API_UPSTREAM} is marketbot-api, e.g. http://127.0.0.1:8080.
+# ${WEB_HOST}:${WEB_PORT} is where this server listens; production keeps it on
+# loopback, behind marketbot-api's TLS nginx.
+
+# The scheme the browser used: the TLS nginx in front says https, and the API
+# marks its session cookie Secure on that. Trusted as given because this
+# server is only reachable from that nginx.
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen ${WEB_HOST}:${WEB_PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # This container's own liveness, independent of the API behind it.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    gzip on;
+    gzip_types application/json application/javascript text/css text/csv image/svg+xml;
+    gzip_min_length 1024;
+
+    # Hashed build output never changes under the same name.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # The Persian font has no hash in its name, but it only changes on a deploy.
+    location /fonts/ {
+        add_header Cache-Control "public, max-age=604800";
+        try_files $uri =404;
+    }
+
+    # The market page's live feed needs the upgrade passed on, and stays open
+    # far longer than any request.
+    location /backoffice/v1/operations/ {
+        proxy_pass ${API_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        # Manual and market orders in live mode wait up to 70s for the engine,
+        # and the order audit and trade report up to 110s for the bot.
+        proxy_read_timeout 120s;
+    }
+
+    # This panel exposes only the customer operations API.
+    location /backoffice/ { return 404; }
+
+    location = /health {
+        proxy_pass ${API_UPSTREAM};
+    }
+
+    # Client-side routes (/market, /provider-edit?code=...) all load the app.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}

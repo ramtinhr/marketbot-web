@@ -1,3 +1,4 @@
+import { HOME_PATH } from '../../app/panel';
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
@@ -5,7 +6,7 @@ import { useAuthStore } from './store';
 
 /** A same-app path to return to after signing in; anything else is ignored. */
 export function safeNext(raw: string | null): string {
-    if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/login')) return '/dashboard';
+    if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/login')) return HOME_PATH;
     return raw;
 }
 
