@@ -43,7 +43,7 @@ server {
 
     # The market page's live feed needs the upgrade passed on, and stays open
     # far longer than any request.
-    location /backoffice/v1/operations/ {
+    location /backoffice/ {
         proxy_pass ${API_UPSTREAM};
         proxy_http_version 1.1;
         proxy_set_header Host              $host;
@@ -53,9 +53,6 @@ server {
         # and the order audit and trade report up to 110s for the bot.
         proxy_read_timeout 120s;
     }
-
-    # This panel exposes only the customer operations API.
-    location /backoffice/ { return 404; }
 
     location = /health {
         proxy_pass ${API_UPSTREAM};

@@ -1,11 +1,10 @@
-import { IS_BACKOFFICE } from '../../app/panel';
 import axios, { type AxiosInstance } from 'axios';
 
 // Where the API lives. Same-origin `/backoffice/v1` by default: in development the
 // Vite server proxies it (vite.config.ts), and in production the dashboard is
 // expected behind the same nginx as the API. Set VITE_API_BASE at build time
 // to point elsewhere (e.g. https://api.example.com/backoffice/v1).
-export const API_BASE: string = (import.meta.env.VITE_API_BASE || (IS_BACKOFFICE ? '/backoffice/v1/operations' : '/backoffice/v1')).replace(/\/+$/, '');
+export const API_BASE: string = (import.meta.env.VITE_API_BASE || '/backoffice/v1').replace(/\/+$/, '');
 
 /** Absolute ws(s):// URL for a path under API_BASE. */
 export function wsUrl(path: string): string {

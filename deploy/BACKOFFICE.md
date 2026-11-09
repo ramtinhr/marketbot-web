@@ -3,15 +3,14 @@
 `backoffice.parscryptoexchange.com` is a separate deployment of this repository.
 It retains the current layout, controls, themes and English/Persian catalogues.
 The default build is the trading dashboard; `VITE_PANEL=backoffice` selects the
-customer operations routes, sidebar, branding and API base at build time.
+customer operations routes, sidebar, branding at build time. Both panels use the same `/backoffice/v1` API.
 
 ## Pages and API
 
-The operations API lives in marketbot-api at `/backoffice/v1/operations`.
-Deploy the API changes before deploying this panel. Existing services and data
-are reused; this change requires no new database migration. Existing migrations
-and the Miniapp-owned auction/P2P/withdrawal tables must already be initialized.
-Missing optional record modules answer 503 with an explicit error.
+Both panels use the existing admin API at `/backoffice/v1`, with the same
+login endpoints, admin accounts and financial services. There is no separate
+operations prefix. Additional global record lists are served under
+`/backoffice/v1/records/{resource}` in that same authenticated API.
 
 | Page | Function |
 | --- | --- |
@@ -30,18 +29,10 @@ manual refresh and pagination. Deposits and ledger entries are read-only: their
 financial transitions continue to belong to existing settlement services.
 Auction cancellation or other new auction mutations are not included.
 
-The default trading build no longer exposes customer or withdrawal routes/menu
-items. The API's original endpoints remain for compatibility during rollout.
-The operations module does not register bot/provider/manual trading routes,
-and the backoffice container rejects the legacy `/backoffice/v1/*` API outside
-its operations namespace.
-
-Both panels use existing admin accounts/permissions and the same auth store.
-Cookies are host-only, HttpOnly and SameSite=Strict, with the existing
-`/backoffice/v1` path, which covers the new namespace. Operators sign in on each
-host. This is a separate panel and API surface, not a separate database, backend
-process or role system. Existing admin password resets/session revocation apply
-to both panels.
+The default trading build no longer exposes customer or withdrawal UI routes.
+The split is frontend navigation and deployment; backend authentication and API
+routes are shared. Cookies remain host-only, HttpOnly and SameSite=Strict, so
+operators use the same credentials when signing in on each domain.
 
 ## Local development
 
@@ -52,8 +43,7 @@ npm run build:backoffice # dist-backoffice/
 
 The Vite proxy uses `API_PROXY_TARGET` as before. Use a separate browser profile
 if testing both panels on localhost with separate logins: cookies do not isolate
-ports. Do not set the trading dashboard's `VITE_API_BASE` when building backoffice;
-it overrides the namespace default.
+ports. Both builds default to the same API base; `VITE_API_BASE` remains an optional build-time override.
 
 ## Production
 
@@ -95,8 +85,7 @@ it overrides the namespace default.
    using Full (strict) SSL mode. Do not install the standalone
    `backoffice.public.nginx.conf` in this Docker ingress: it is an alternative
    only for hosts managed through system nginx.
-5. Verify HTTPS login and `/backoffice/v1/operations/auth/me`; verify the old
-   `/backoffice/v1/users` endpoint returns 404 on this domain. Check customer,
+5. Verify HTTPS login and `/backoffice/v1/auth/me`; verify `/backoffice/v1/users` uses the existing admin session. Check customer,
    bank, ledger and withdrawal pages with an admin session before retiring the
    old dashboard deployment.
 6. Rebuild/redeploy the default trading dashboard to remove its old menu/routes.
